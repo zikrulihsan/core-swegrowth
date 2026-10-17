@@ -13,6 +13,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 /** App yang boleh menerima login, beserta origin yang diizinkan. */
 const APPS: Record<string, string[]> = {
   trellonotes: ['https://notis.swegrowth.id', 'https://notes.swegrowth.id', 'https://trellonotes.netlify.app', 'http://localhost:5173', 'http://127.0.0.1:5173'],
+  projects: ['https://projects.swegrowth.id', 'http://localhost:3000', 'http://127.0.0.1:3000'],
 };
 
 /** Origin swegrowth yang boleh memanggil fungsi ini. */
