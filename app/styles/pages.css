@@ -286,6 +286,21 @@ a.contrib-maker:hover { text-decoration: underline; text-underline-offset: 3px; 
 .event-poster { width: 100%; border-radius: var(--r); border: 1px solid var(--line); }
 .event-section h2 { font-size: 1.25rem; margin-bottom: 14px; }
 .event-section .prose { max-width: none; }
+/* Pemutar rekaman YouTube: thumbnail dulu, iframe setelah diklik. */
+.yt-embed { position: relative; aspect-ratio: 16 / 9; border-radius: var(--r); overflow: hidden; background: #000; }
+.yt-embed iframe, .yt-embed button { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.yt-embed button { padding: 0; cursor: pointer; background: none; }
+.yt-embed img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.yt-play { position: absolute; left: 50%; top: 50%; width: 68px; height: 48px; transform: translate(-50%, -50%); border-radius: 14px; background: rgba(0, 0, 0, .72); transition: background .15s; }
+.yt-play::after { content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-35%, -50%); border-style: solid; border-width: 10px 0 10px 17px; border-color: transparent transparent transparent #fff; }
+.yt-embed button:hover .yt-play, .yt-embed button:focus-visible .yt-play { background: #e00; }
+.yt-embed + p { margin-top: 8px; font-size: .88rem; }
+/* Galeri rekaman (beranda dan /rekaman). */
+.recording-grid { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 24px 20px; }
+.recording-grid h3 { margin-top: 12px; font-size: 1rem; line-height: 1.35; }
+.recording-grid h3 a { color: inherit; text-decoration: none; }
+.recording-grid h3 a:hover { text-decoration: underline; }
+.recording-grid time { display: block; margin-top: 4px; font-size: .84rem; color: var(--ink-faint); }
 
 /* "Yang akan dibahas": kotak seperti kisi-kisi obrolan di poster. */
 .highlights { padding: 20px 22px; background: var(--paper); border: 1px solid var(--line); border-left: 4px solid var(--yellow); border-radius: var(--r); }
@@ -457,6 +472,8 @@ a.contrib-maker:hover { text-decoration: underline; text-underline-offset: 3px; 
 .agenda-time-tabs button span { margin-left: 4px; font-size: .74rem; opacity: .6; }
 .past-event-thumb { flex: none; width: 88px; aspect-ratio: 16 / 10; border-radius: var(--r-sm); overflow: hidden; background: var(--bg-2); }
 .past-event-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.past-event-thumb.has-video { position: relative; }
+.past-event-thumb.has-video::after { content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-35%, -50%); border-style: solid; border-width: 8px 0 8px 13px; border-color: transparent transparent transparent #fff; filter: drop-shadow(0 1px 3px rgba(0, 0, 0, .6)); }
 @media (max-width: 520px) { .past-event-thumb { width: 64px; } }
 
 /* Agenda: acara dari luar yang direkomendasikan */

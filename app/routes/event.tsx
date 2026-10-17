@@ -5,6 +5,7 @@ import { Avatar } from '~/components/Avatar';
 import { GoogleSignIn } from '~/components/GoogleSignIn';
 import { CalendarIcon, ClockIcon, PinIcon, RepeatIcon, UsersIcon } from '~/components/Icons';
 import { PhotoGallery } from '~/components/PhotoGallery';
+import { YouTubeEmbed } from '~/components/YouTubeEmbed';
 import {
   activityPath,
   activityStatusLabel,
@@ -30,6 +31,7 @@ import type { RegistrationStatus } from '~/lib/database.types';
 import { formatWibDate, formatWibDay, formatWibTime } from '~/lib/format';
 import { pageMeta } from '~/lib/site';
 import { supabase } from '~/lib/supabase';
+import { youtubeId } from '~/lib/youtube';
 
 export const meta: Route.MetaFunction = ({ loaderData }) => {
   const a = loaderData?.activity;
@@ -74,6 +76,7 @@ export default function EventPage({ loaderData: { activity: a, stats, organizer 
   const place = [a.mode && modeLabel[a.mode], a.location].filter(Boolean).join(' · ');
   // Jadwal sudah lewat dianggap selesai walau status belum diubah admin.
   const done = !isActivityUpcoming(a);
+  const recordingId = youtubeId(a.youtube_url);
   const soon = done ? null : countdown(a);
   const my = useMine(a.id);
 
@@ -100,6 +103,15 @@ export default function EventPage({ loaderData: { activity: a, stats, organizer 
         </header>
 
         <div className="event-main">
+          {/* Rekaman paling atas: yang membuka event lalu biasanya mencari ini. */}
+          {recordingId && (
+            <section className="event-section" id="rekaman">
+              <h2>Rekaman</h2>
+              <YouTubeEmbed id={recordingId} title={a.title} />
+              <p className="muted"><a href={a.youtube_url!} target="_blank" rel="noreferrer">Tonton di YouTube</a></p>
+            </section>
+          )}
+
           {(a.highlights ?? []).length > 0 && (
             <section className="event-section highlights">
               <h2>Yang akan dibahas</h2>

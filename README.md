@@ -64,6 +64,9 @@ npm run build      # output ke build/client
 4. **Admin**: tambahkan email ke tabel `activity_admin_emails`.
 5. **Foto dokumentasi**: migration `20261020000000_community_events.sql` membuat bucket Storage publik `event-photos`
    (hanya admin yang bisa mengunggah, maks. 5 MB per foto; editor memperkecil foto sebelum diunggah).
+6. **Rekaman YouTube**: migration `20261021000000_youtube_recording.sql` menambah kolom `activities.youtube_url`.
+   Admin menempel link video di bagian Dokumentasi; rekaman tampil di galeri `/rekaman` dan beranda, diputar di halaman
+   event, dan ditandai di Kegiatan lalu. Arsip lama (`app/lib/past-activities.ts`) ikut tampil kalau diberi `youtube`.
 
 ### Event komunitas
 

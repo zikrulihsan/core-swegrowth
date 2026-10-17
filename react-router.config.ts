@@ -11,5 +11,5 @@ Object.assign(process.env, { ...loadEnv('production', process.cwd(), 'VITE_'), .
  */
 export default {
   ssr: false,
-  prerender: ['/', '/tentang', '/agenda', '/rekomendasi', '/code-of-conduct', '/privasi', '/term-of-service'],
+  prerender: ['/', '/tentang', '/agenda', '/rekaman', '/rekomendasi', '/code-of-conduct', '/privasi', '/term-of-service'],
 } satisfies Config;

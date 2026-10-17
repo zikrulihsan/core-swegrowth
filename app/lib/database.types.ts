@@ -80,6 +80,8 @@ export type ActivityRow = {
   /** Tanggal WIB (yyyy-mm-dd) sesi terakhir boleh jatuh, inklusif; null = terus berulang. */
   recurrence_until: string | null;
   photos: EventPhoto[];
+  /** Rekaman publik di YouTube, diputar di halaman event. */
+  youtube_url: string | null;
   /** Diisi edge function calendar-sync. */
   google_event_id: string | null;
   google_event_url: string | null;

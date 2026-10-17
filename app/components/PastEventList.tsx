@@ -1,10 +1,12 @@
 import { Link } from 'react-router';
 import { activityPath, organizerOf, recurrenceLabel, type Activity, type CommunityGroup } from '~/lib/activities';
 import { formatWibDate, wibDayParts } from '~/lib/format';
+import { youtubeId, youtubeThumb } from '~/lib/youtube';
 
 /**
- * Kegiatan lalu: tiap baris membuka detail event; yang punya dokumentasi
- * langsung ke galeri fotonya dan menampilkan foto pertama sebagai thumbnail.
+ * Kegiatan lalu: tiap baris membuka detail event; yang punya rekaman langsung
+ * ke pemutarnya, yang punya foto ke galerinya. Thumbnail: foto pertama, atau
+ * thumbnail video kalau belum ada foto.
  */
 export function PastEventList({
   activities,
@@ -22,7 +24,9 @@ export function PastEventList({
         const parts = a.starts_at ? wibDayParts(a.starts_at) : null;
         const organizer = organizerOf(a, groups);
         const photos = a.photos ?? [];
-        const href = photos.length > 0 ? `${activityPath(a)}#dokumentasi` : activityPath(a);
+        const video = youtubeId(a.youtube_url);
+        const href = video ? `${activityPath(a)}#rekaman` : photos.length > 0 ? `${activityPath(a)}#dokumentasi` : activityPath(a);
+        const thumb = photos[0]?.url ?? (video && youtubeThumb(video));
         const tag = tagOf?.(a);
         return (
           <li key={a.id}>
@@ -35,6 +39,7 @@ export function PastEventList({
                 {[
                   a.recurrence ? recurrenceLabel(a) : a.starts_at && formatWibDate(a.starts_at),
                   organizer && `oleh ${organizer.name}`,
+                  video ? 'ada rekaman' : null,
                   photos.length > 0 ? `${photos.length} foto` : null,
                   tag,
                 ]
@@ -42,9 +47,9 @@ export function PastEventList({
                   .join(' · ')}
               </span>
             </div>
-            {photos.length > 0 && (
-              <Link className="past-event-thumb" to={href} tabIndex={-1} aria-hidden="true">
-                <img src={photos[0].url} alt="" loading="lazy" />
+            {thumb && (
+              <Link className={`past-event-thumb${video ? ' has-video' : ''}`} to={href} tabIndex={-1} aria-hidden="true">
+                <img src={thumb} alt="" loading="lazy" />
               </Link>
             )}
           </li>

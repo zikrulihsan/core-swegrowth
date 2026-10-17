@@ -4,6 +4,7 @@ import type { Route } from './+types/home';
 import { AgendaList } from '~/components/AgendaList';
 import { byEventDate, ExternalEventRows } from '~/components/ExternalEventList';
 import { RecommendationCard } from '~/components/RecommendationCard';
+import { RecordingGrid } from '~/components/RecordingGrid';
 import { Avatar } from '~/components/Avatar';
 import { SOCIALS } from '~/components/Socials';
 import { ArrowRight, ArrowUpRight, BookIcon, BriefcaseIcon, ChatIcon, MicIcon, UsersIcon, VideoIcon } from '~/components/Icons';
@@ -13,6 +14,7 @@ import { useAuth } from '~/lib/auth';
 import { getPublishedContributions } from '~/lib/contributions';
 import type { RecommendationCategory } from '~/lib/database.types';
 import { CATEGORIES, directoryPath, getPublishedRecommendations, SUBMIT_PATH } from '~/lib/recommendations';
+import { recordingsFrom, YOUTUBE_CHANNEL_URL } from '~/lib/recordings';
 import { TOPICS } from '~/lib/topics';
 import { pageMeta } from '~/lib/site';
 
@@ -34,6 +36,7 @@ const load = async () => {
     live,
     pulse,
     activities: upcomingSessions(activities).slice(0, 3),
+    recordings: recordingsFrom(activities).slice(0, 3),
     // Acara dari luar tampil di agenda, jadi tidak diulang di rekomendasi pilihan.
     external: recommendations.filter((r) => r.category === 'acara').sort(byEventDate).slice(0, 3),
     // Penanda "segera"/"baru" dihitung di browser saja supaya HTML prerender tidak basi.
@@ -156,7 +159,7 @@ function HeroPulse({ items }: { items: Route.ComponentProps['loaderData']['pulse
   );
 }
 
-export default function Home({ loaderData: { activities, external, now, groups, contributions, recommendations, stats, live, pulse } }: Route.ComponentProps) {
+export default function Home({ loaderData: { activities, recordings, external, now, groups, contributions, recommendations, stats, live, pulse } }: Route.ComponentProps) {
   const { user } = useAuth();
   const [picked, setPicked] = useState(0);
   const [hovered, setHovered] = useState<number | null>(null);
@@ -246,6 +249,22 @@ export default function Home({ loaderData: { activities, external, now, groups, 
               )}
             </div>
             <Link className="btn btn-ghost more-link" to="/agenda">Lihat semua agenda <ArrowRight /></Link>
+          </div>
+        </section>
+      )}
+
+      {recordings.length > 0 && (
+        <section className="home-section">
+          <div className="wrap narrow-wrap">
+            <div className="home-head">
+              <p className="home-label">Rekaman</p>
+              <h2>Ketinggalan sesi? Nonton lagi di sini</h2>
+            </div>
+            <RecordingGrid recordings={recordings} />
+            <div className="home-rec-more">
+              <Link className="btn btn-ghost" to="/rekaman">Lihat semua rekaman <ArrowRight /></Link>
+              <a className="text-link" href={YOUTUBE_CHANNEL_URL} target="_blank" rel="noopener">Channel YouTube SWE Growth</a>
+            </div>
           </div>
         </section>
       )}

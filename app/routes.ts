@@ -9,6 +9,7 @@ export default [
   route('agenda/:slug/daftar', 'routes/event-register.tsx'),
   route('agenda/:slug/terdaftar', 'routes/event-registered.tsx'),
   route('portal/agenda/:slug', 'routes/portal-event-redirect.tsx'),
+  route('rekaman', 'routes/recordings.tsx'),
   route('rekomendasi', 'routes/recommendations.tsx'),
   route('tentang', 'routes/about.tsx'),
   // Profil publik member (SPA, data dari public_profile())

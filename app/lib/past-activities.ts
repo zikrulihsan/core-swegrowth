@@ -1,9 +1,10 @@
 /**
  * Kegiatan yang sudah lewat sebelum agenda pindah ke portal, dirangkum dari
  * arsip media SWE Growth. Tambah baris
- * baru di paling atas; `month` cukup "YYYY-MM" (bulan kegiatan).
+ * baru di paling atas; `month` cukup "YYYY-MM" (bulan kegiatan). Isi `youtube`
+ * dengan link videonya di channel YouTube SWE Growth kalau ada rekamannya.
  */
-export type PastActivity = { month: string; title: string; note?: string };
+export type PastActivity = { month: string; title: string; note?: string; youtube?: string };
 
 export const PAST_ACTIVITIES: PastActivity[] = [
   { month: '2026-09', title: 'Kopdar offline chapter Jogja' },

@@ -22,6 +22,7 @@ import { downloadEventPoster } from '~/lib/event-poster';
 import { formatWibDate, formatWibTime } from '~/lib/format';
 import { SITE_URL } from '~/lib/site';
 import { supabase } from '~/lib/supabase';
+import { YOUTUBE_URL_PATTERN, youtubeId } from '~/lib/youtube';
 
 export const meta: Route.MetaFunction = ({ loaderData }) => [
   { title: `${loaderData?.activity?.title ?? 'Event baru'} — Admin SWE Growth` },
@@ -101,6 +102,7 @@ export default function AdminEvent({ loaderData }: Route.ComponentProps) {
       recurrence: (val(form, 'recurrence') || null) as Recurrence | null,
       recurrence_until: val(form, 'recurrence') ? val(form, 'recurrence_until') || null : null,
       photos: JSON.parse(val(form, 'photos') || '[]') as EventPhoto[],
+      youtube_url: val(form, 'youtube_url') || null,
       status: val(form, 'status') as ActivityStatus,
       price_idr: Number.parseInt(val(form, 'price_idr') || '0', 10),
       capacity: capacity ? Number.parseInt(capacity, 10) : null,
@@ -111,6 +113,10 @@ export default function AdminEvent({ loaderData }: Route.ComponentProps) {
     };
     if (fields.starts_at && fields.ends_at && fields.ends_at <= fields.starts_at) {
       alert('Jam selesai harus setelah jam mulai.');
+      return;
+    }
+    if (fields.youtube_url && !youtubeId(fields.youtube_url)) {
+      alert('Link rekaman YouTube tidak dikenali. Pakai link video, mis. https://youtu.be/… atau https://www.youtube.com/watch?v=…');
       return;
     }
     if (fields.recurrence && !fields.starts_at) {
@@ -273,14 +279,17 @@ export default function AdminEvent({ loaderData }: Route.ComponentProps) {
               <Field id="meeting_url" label="Link meeting" optional hint="Hanya peserta terkonfirmasi, terbuka 1 jam sebelum acara.">
                 <input id="meeting_url" name="meeting_url" type="url" pattern="https://.*" defaultValue={info?.meeting_url ?? ''} placeholder="https://meet.google.com/…" />
               </Field>
-              <Field id="recording_url" label="Link rekaman" optional hint="Untuk verified member (segera hadir).">
+              <Field id="recording_url" label="Link rekaman khusus member" optional hint="Untuk verified member (segera hadir). Rekaman publik diisi di bagian Dokumentasi.">
                 <input id="recording_url" name="recording_url" type="url" pattern="https://.*" defaultValue={info?.recording_url ?? ''} placeholder="https://youtu.be/…" />
               </Field>
             </div>
             <NextStepsEditor initial={a?.next_steps ?? []} />
           </EditorSection>
 
-          <EditorSection n={7} title="Dokumentasi" hint="Foto kegiatan, tampil sebagai galeri di halaman event dan di bagian Dokumentasi pada agenda. Foto pertama jadi sampul.">
+          <EditorSection n={7} title="Dokumentasi" hint="Rekaman dan foto kegiatan, tampil di halaman event dan di daftar Kegiatan lalu pada agenda. Foto pertama jadi sampul.">
+            <Field id="youtube_url" label="Rekaman YouTube" optional hint="Video publik/unlisted di channel SWE Growth. Diputar langsung di halaman event, terbuka untuk semua orang.">
+              <input id="youtube_url" name="youtube_url" type="url" pattern={YOUTUBE_URL_PATTERN} defaultValue={a?.youtube_url ?? ''} placeholder="https://youtu.be/…" />
+            </Field>
             <PhotosEditor initial={a?.photos ?? []} folder={a?.id ?? 'baru'} />
           </EditorSection>
 

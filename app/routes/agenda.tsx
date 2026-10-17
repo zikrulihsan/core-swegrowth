@@ -133,7 +133,10 @@ function PastArchive() {
         {PAST_ACTIVITIES.map((a) => (
           <li key={`${a.month}-${a.title}`}>
             <time>{monthFmt.format(new Date(`${a.month}-01T00:00:00`))}</time>
-            {a.title}
+            <span>
+              {a.title}
+              {a.youtube && <> · <a href={a.youtube} target="_blank" rel="noreferrer">tonton rekaman</a></>}
+            </span>
           </li>
         ))}
       </ul>

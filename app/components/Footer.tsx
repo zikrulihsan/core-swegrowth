@@ -20,6 +20,7 @@ export function Footer() {
         <div className="foot-links">
           <Link to="/tentang">Tentang</Link>
           <Link to="/agenda">Agenda</Link>
+          <Link to="/rekaman">Rekaman</Link>
           <Link to="/rekomendasi">Rekomendasi</Link>
           <Link to="/code-of-conduct">Code of Conduct</Link>
           <Link to="/privasi">Privasi</Link>
