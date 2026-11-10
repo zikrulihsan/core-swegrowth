@@ -1,5 +1,5 @@
-import { useEffect, useState, type ReactNode } from 'react';
-import { data, Link } from 'react-router';
+import { Suspense, useEffect, useState, type ReactNode } from 'react';
+import { Await, data, Link } from 'react-router';
 import type { Route } from './+types/event';
 import { Avatar } from '~/components/Avatar';
 import { GoogleSignIn } from '~/components/GoogleSignIn';
@@ -13,6 +13,7 @@ import {
   countdown,
   fetchMyRegistration,
   fetchPublicStats,
+  getCommunityGroups,
   getPublishedActivityBySlug,
   isActiveRegistration,
   isActivityUpcoming,
@@ -25,9 +26,9 @@ import {
   speakerPhoto,
   timeRange,
   type Activity,
-  fetchOrganizer,
   followActivity,
   isFollowing,
+  organizerOf,
 } from '~/lib/activities';
 import { useAuth } from '~/lib/auth';
 import type { RegistrationStatus } from '~/lib/database.types';
@@ -48,19 +49,42 @@ export const meta: Route.MetaFunction = ({ loaderData }) => {
 /**
  * Detail event publik. Pendaftaran tiga langkah:
  * detail (tombol Daftar) → /daftar (form, terisi dari profil) → /terdaftar (konfirmasi).
+ *
+ * Kegiatan publik di-prerender saat build (lihat react-router.config.ts) supaya
+ * isinya langsung tampil; di browser data selalu diambil ulang. Slug yang belum
+ * ada saat build dilayani SPA fallback.
  */
-export async function clientLoader({ params }: Route.ClientLoaderArgs) {
-  const activity = await getPublishedActivityBySlug(params.slug);
+const load = async (slug: string) => {
+  // Subgrup diambil bersamaan (tabel kecil) supaya tidak menunggu id penyelenggara dulu.
+  const [activity, groups] = await Promise.all([getPublishedActivityBySlug(slug), getCommunityGroups()]);
   if (!activity) throw data(null, { status: 404 });
-  const [stats, organizer] = await Promise.all([fetchPublicStats(activity.id), fetchOrganizer(activity.organizer_group_id)]);
-  return { activity, stats, organizer };
+  return { activity, organizer: organizerOf(activity, groups) };
+};
+
+/** Saat build: snapshot untuk HTML prerender. */
+export async function loader({ params }: Route.LoaderArgs) {
+  const loaded = await load(params.slug);
+  return { ...loaded, stats: await fetchPublicStats(loaded.activity.id), now: Date.now() };
 }
 
-export function HydrateFallback() {
-  return <div className="loading-block">Memuat kegiatan…</div>;
+/** Di browser: halaman tampil begitu kegiatannya ada, kuota menyusul (butuh id kegiatan). */
+export async function clientLoader({ params }: Route.ClientLoaderArgs) {
+  const loaded = await load(params.slug);
+  return { ...loaded, stats: fetchPublicStats(loaded.activity.id), now: Date.now() };
 }
+clientLoader.hydrate = true as const;
 
-type Stats = Route.ComponentProps['loaderData']['stats'];
+type Stats = Awaited<ReturnType<typeof fetchPublicStats>>;
+type StatsData = Stats | Promise<Stats>;
+
+/** Tampilkan `children` dengan kuota; selama kuota belum ada pakai `fallback`. */
+function WithStats({ stats, fallback, children }: { stats: StatsData; fallback: ReactNode; children: (stats: Stats) => ReactNode }) {
+  return (
+    <Suspense fallback={fallback}>
+      <Await resolve={stats}>{children}</Await>
+    </Suspense>
+  );
+}
 
 const modeLabel = { online: 'Online', offline: 'Offline', hybrid: 'Hybrid' } as const;
 
@@ -69,12 +93,14 @@ const modeLabel = { online: 'Online', offline: 'Offline', hybrid: 'Hybrid' } as 
  * → quick CTA) → "yang akan dibahas" → poster & deskripsi → bagian pendaftaran
  * lengkap di bawah. Quick CTA menggulir ke pendaftaran; tiap info tampil sekali.
  */
-export default function EventPage({ loaderData: { activity: a, stats, organizer } }: Route.ComponentProps) {
+export default function EventPage({ loaderData: { activity: a, stats, organizer, now: loadedAt } }: Route.ComponentProps) {
   const place = [a.mode && modeLabel[a.mode], a.location].filter(Boolean).join(' · ');
+  // Waktu ikut dari loader supaya hidrasi HTML prerender tidak berbeda isi.
+  const now = new Date(loadedAt);
   // Jadwal sudah lewat dianggap selesai walau status belum diubah admin.
-  const done = !isActivityUpcoming(a);
+  const done = !isActivityUpcoming(a, now);
   const recordingId = youtubeId(a.youtube_url);
-  const soon = done ? null : countdown(a);
+  const soon = done ? null : countdown(a, now);
   const my = useMine(a.id);
 
   return (
@@ -101,9 +127,13 @@ export default function EventPage({ loaderData: { activity: a, stats, organizer 
           </p>
           <h1 className="event-title">{a.title}</h1>
           {a.summary && <p className="event-summary-text">{a.summary}</p>}
-          <EventMeta activity={a} place={place} />
+          <EventMeta activity={a} place={place} now={now} />
           {a.speaker && <HeroSpeaker activity={a} />}
-          {!done && <QuickCta activity={a} stats={stats} my={my} />}
+          {!done && (
+            <WithStats stats={stats} fallback={<div className="quick-cta" aria-hidden="true" />}>
+              {(s) => <QuickCta activity={a} stats={s} my={my} />}
+            </WithStats>
+          )}
         </header>
 
         <div className="event-main">
@@ -157,7 +187,7 @@ export default function EventPage({ loaderData: { activity: a, stats, organizer 
           <div className="event-register-recap">
             <h2>{isActiveRegistration(my.mine?.status) ? 'Pendaftaranmu' : done ? 'Pendaftaran' : 'Daftar acara ini'}</h2>
             <p className="event-register-title">{a.title}</p>
-            <EventMeta activity={a} place={place} plain />
+            <EventMeta activity={a} place={place} now={now} plain />
             {a.speaker && (
               <p className="muted">
                 Bersama <b>{a.speaker}</b>
@@ -165,18 +195,18 @@ export default function EventPage({ loaderData: { activity: a, stats, organizer 
               </p>
             )}
           </div>
-          <RegisterCard activity={a} stats={stats} my={my} />
+          <RegisterCard activity={a} stats={stats} my={my} done={done} />
         </section>
       </div>
     </section>
   );
 }
 
-function EventMeta({ activity: a, place, plain }: { activity: Activity; place: string; plain?: boolean }) {
+function EventMeta({ activity: a, place, now, plain }: { activity: Activity; place: string; now: Date; plain?: boolean }) {
   return (
     <ul className={plain ? 'event-meta plain' : 'event-meta'}>
       <MetaItem icon={<CalendarIcon />}>
-        {a.recurrence && nextSession(a) && <span className="meta-prefix">Sesi berikutnya </span>}
+        {a.recurrence && nextSession(a, now) && <span className="meta-prefix">Sesi berikutnya </span>}
         <b>{a.starts_at ? formatWibDay(a.starts_at) : 'Tanggal menyusul'}</b>
       </MetaItem>
       {a.starts_at && <MetaItem icon={<ClockIcon />}>{timeRange(a)}</MetaItem>}
@@ -335,7 +365,7 @@ function Seats({ activity: a, stats }: { activity: Activity; stats: Stats }) {
 }
 
 /** Kartu daftar: harga → kuota → satu aksi → keterangan singkat → bagikan. */
-function RegisterCard({ activity: a, stats, my }: { activity: Activity; stats: Stats; my: My }) {
+function RegisterCard({ activity: a, stats, my, done }: { activity: Activity; stats: StatsData; my: My; done: boolean }) {
   const { user, mine, setMine } = my;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -358,7 +388,6 @@ function RegisterCard({ activity: a, stats, my }: { activity: Activity; stats: S
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const done = !isActivityUpcoming(a);
   const action = (() => {
     if (done) {
       return (
@@ -444,7 +473,11 @@ function RegisterCard({ activity: a, stats, my }: { activity: Activity; stats: S
         <span className="register-label">Biaya</span>
         <b>{priceLabel(a)}</b>
       </div>
-      {!done && <Seats activity={a} stats={stats} />}
+      {!done && (
+        <WithStats stats={stats} fallback={null}>
+          {(s) => <Seats activity={a} stats={s} />}
+        </WithStats>
+      )}
       {error && <p className="form-message error">{error}</p>}
       <div className="register-action">{action}</div>
       <button className="register-share" type="button" onClick={copyLink}>

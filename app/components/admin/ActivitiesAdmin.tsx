@@ -3,7 +3,7 @@ import { ACTIVITY_STATUSES, activityStatusLabel, organizerOf, recurrenceLabel } 
 import { useMutation } from '~/lib/admin-form';
 import type { ActivityStatus, CommunityGroupRow } from '~/lib/database.types';
 import { formatWibDate, formatWibTime } from '~/lib/format';
-import { setActivityStatus, type AdminDashboard } from '~/lib/admin-data';
+import { requestRebuild, setActivityStatus, type AdminDashboard } from '~/lib/admin-data';
 
 type Activities = AdminDashboard['activities'];
 type RegistrationSummary = AdminDashboard['registrations'];
@@ -69,7 +69,11 @@ export function ActivitiesAdmin({
                         value={a.status}
                         disabled={busy}
                         onChange={(e) =>
-                          run(() => setActivityStatus(a.id, e.target.value as ActivityStatus), `Status "${a.title}" diperbarui.`)
+                          void run(() => setActivityStatus(a.id, e.target.value as ActivityStatus), `Status "${a.title}" diperbarui.`).then(
+                            (ok) => {
+                              if (ok) void requestRebuild();
+                            },
+                          )
                         }
                       >
                         {ACTIVITY_STATUSES.map((st) => (

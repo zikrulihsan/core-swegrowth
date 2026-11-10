@@ -20,7 +20,7 @@ import {
   syncCalendar,
   type CalendarSyncResult,
 } from '~/lib/activities';
-import { loadEventEditor, saveActivity } from '~/lib/admin-data';
+import { loadEventEditor, requestRebuild, saveActivity } from '~/lib/admin-data';
 import { Field, isoToWib, useMutation, val, wibToIso } from '~/lib/admin-form';
 import { requireAdmin } from '~/lib/auth';
 import type { ActivityStatus, EventPhoto, NextStep, Recurrence, RegistrationField } from '~/lib/database.types';
@@ -143,6 +143,7 @@ export default function AdminEvent({ loaderData }: Route.ComponentProps) {
     if (!a) navigate(`/admin/event/${id}`, { replace: true });
     // Jadwal/judul berubah → event Google & semua tamu ikut diperbarui.
     void sync(id);
+    void requestRebuild();
   };
 
   return (

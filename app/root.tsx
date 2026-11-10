@@ -10,7 +10,13 @@ import './styles/global.css';
 import './styles/pages.css';
 import './styles/app.css';
 
-export const links: Route.LinksFunction = () => [{ rel: 'icon', type: 'image/png', href: '/assets/swe-growth-logo.png' }];
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+
+export const links: Route.LinksFunction = () => [
+  { rel: 'icon', type: 'image/png', href: '/assets/swe-growth-logo.png' },
+  // Handshake ke Supabase jalan bersamaan dengan unduhan JS, bukan sesudahnya.
+  ...(supabaseUrl ? [{ rel: 'preconnect', href: new URL(supabaseUrl).origin, crossOrigin: 'anonymous' as const }] : []),
+];
 
 export function Layout({ children }: { children: ReactNode }) {
   return (
