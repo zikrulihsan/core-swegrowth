@@ -94,6 +94,18 @@ export const endMembership = (userId: string, lastDay: string) =>
 
 export const setActivityStatus = (id: string, status: ActivityStatus) => supabase().from('activities').update({ status }).eq('id', id);
 
+/**
+ * Minta Netlify build ulang (edge function /api/rebuild, khusus admin) supaya
+ * HTML prerender halaman kegiatan & agenda ikut terbarui. Gagal tidak apa-apa:
+ * halaman publik tetap mengambil data terbaru di browser.
+ */
+export async function requestRebuild() {
+  const { data } = await supabase().auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) return;
+  await fetch('/api/rebuild', { method: 'POST', headers: { Authorization: `Bearer ${token}` } }).catch(() => undefined);
+}
+
 const communityGroupsQuery = () =>
   supabase()
     .from('community_groups')

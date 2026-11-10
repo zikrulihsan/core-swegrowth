@@ -1,12 +1,15 @@
 /**
  * Preview link kegiatan untuk WhatsApp, Telegram, X, LinkedIn, dst.
  *
- * /agenda/:slug dilayani app shell SPA yang belum punya meta kegiatan, dan
- * crawler preview tidak menjalankan JS. Edge function ini mengambil kegiatan
- * dari Supabase lalu menyisipkan title + Open Graph ke HTML sebelum dikirim.
+ * Kegiatan yang sudah ada saat build di-prerender lengkap dengan meta. Kegiatan
+ * yang lebih baru dilayani app shell SPA tanpa meta, dan crawler preview tidak
+ * menjalankan JS. Untuk crawler saja, edge function ini mengambil kegiatan dari
+ * Supabase lalu menyisipkan title + Open Graph ke HTML sebelum dikirim.
+ * Pengunjung biasa langsung dilayani tanpa menunggu Supabase.
  * Gagal ambil data = HTML dikirim apa adanya, halaman tetap jalan.
  */
 import type { Config, Context } from '@netlify/edge-functions';
+import { isbot } from 'isbot';
 
 const SITE_URL = 'https://swegrowth.id';
 const FALLBACK_IMAGE = `${SITE_URL}/assets/swe-growth-logo.png`;
@@ -84,12 +87,16 @@ function metaTags(a: Activity) {
 export default async function handler(request: Request, context: Context) {
   // Hanya halaman detail (/agenda/:slug); /daftar dan /terdaftar dibiarkan.
   const slug = new URL(request.url).pathname.match(/^\/agenda\/([^/]+)\/?$/)?.[1];
-  if (!slug) return;
+  if (!slug || !isbot(request.headers.get('user-agent'))) return;
 
   const [response, activity] = await Promise.all([context.next(), fetchActivity(decodeURIComponent(slug)).catch(() => null)]);
   if (!activity || !response.headers.get('content-type')?.includes('text/html')) return response;
 
-  const html = (await response.text())
+  const original = await response.text();
+  // HTML prerender sudah punya meta kegiatan.
+  if (original.includes('property="og:title"')) return new Response(original, response);
+
+  const html = original
     // Deskripsi default dari root diganti punya kegiatan.
     .replace(/<meta name="description"[^>]*>/, '')
     .replace('</head>', `${metaTags(activity)}</head>`);

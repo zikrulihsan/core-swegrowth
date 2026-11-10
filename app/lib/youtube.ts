@@ -2,6 +2,8 @@
  * Rekaman di channel YouTube SWE Growth. Admin cukup menempel link apa pun
  * (youtu.be, watch?v=, /live/, /shorts/, /embed/); yang disimpan tetap link aslinya.
  */
+import { SITE_URL } from './site';
+
 const ID = /^[\w-]{11}$/;
 
 export function youtubeId(url: string | null | undefined): string | null {
@@ -55,15 +57,23 @@ export function parseChannelFeed(xml: string): ChannelVideo[] {
     });
 }
 
-/**
- * Video terbaru di channel. Saat build langsung ke YouTube; di browser lewat
- * edge function /api/youtube-feed (CORS + cache). Gagal = daftar kosong.
- */
-export async function getChannelVideos(): Promise<ChannelVideo[]> {
+async function fetchFeed(url: string): Promise<ChannelVideo[] | null> {
   try {
-    const res = await fetch(typeof window === 'undefined' ? FEED_URL : '/api/youtube-feed', { signal: AbortSignal.timeout(8000) });
-    return res.ok ? parseChannelFeed(await res.text()) : [];
+    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    return res.ok ? parseChannelFeed(await res.text()) : null;
   } catch {
-    return [];
+    return null;
   }
+}
+
+/**
+ * Video terbaru di channel; null kalau feed gagal diambil (beda dengan channel kosong).
+ * Di browser lewat edge function /api/youtube-feed (CORS + cache). Saat build
+ * langsung ke YouTube, yang sering menolak server build Netlify, jadi cadangannya
+ * edge function di situs production.
+ */
+export async function getChannelVideos(): Promise<ChannelVideo[] | null> {
+  // Di browser coba sekali lagi: edge function yang baru bangun kadang gagal di panggilan pertama.
+  if (typeof window !== 'undefined') return (await fetchFeed('/api/youtube-feed')) ?? fetchFeed('/api/youtube-feed');
+  return (await fetchFeed(FEED_URL)) ?? fetchFeed(`${SITE_URL}/api/youtube-feed`);
 }

@@ -22,10 +22,16 @@ export function supabase() {
   return browserClient;
 }
 
-/** Client tanpa sesi untuk loader saat build/prerender. */
+let anonClient: SupabaseClient<Database> | null = null;
+
+/**
+ * Client tanpa sesi: loader saat build/prerender, dan bacaan data publik di
+ * browser supaya tidak menunggu sesi login dimuat/di-refresh dulu.
+ */
 export function anonSupabase() {
   if (!url || !publishableKey) return null;
-  return createClient<Database>(url, publishableKey, {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  anonClient ??= createClient<Database>(url, publishableKey, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: 'sb-anon' },
   });
+  return anonClient;
 }

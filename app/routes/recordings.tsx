@@ -9,16 +9,21 @@ export const meta: Route.MetaFunction = () =>
 
 /** Saat build: snapshot untuk HTML prerender. */
 export async function loader() {
-  return { recordings: await getRecordings() };
+  return { ...(await getRecordings()), live: false };
 }
 
 /** Di browser: selalu ambil yang terbaru. */
 export async function clientLoader() {
-  return { recordings: await getRecordings() };
+  return { ...(await getRecordings()), live: true };
 }
 clientLoader.hydrate = true as const;
 
-export default function Recordings({ loaderData: { recordings } }: Route.ComponentProps) {
+/**
+ * Daftar kosong baru disebut "belum ada" kalau feed YouTube berhasil dibaca.
+ * Snapshot build yang gagal ambil feed tampil "memuat" sampai data browser masuk.
+ */
+export default function Recordings({ loaderData: { recordings, channelOk, live } }: Route.ComponentProps) {
+  const feed = channelOk ? null : live ? 'failed' : 'loading';
   return (
     <section className="block">
       <div className="wrap narrow-wrap">
@@ -30,9 +35,18 @@ export default function Recordings({ loaderData: { recordings } }: Route.Compone
           </a>
           .
         </p>
-        {recordings.length > 0 ? (
-          <RecordingGrid recordings={recordings} />
-        ) : (
+        {recordings.length > 0 && <RecordingGrid recordings={recordings} />}
+        {feed === 'loading' && recordings.length === 0 && <div className="loading-block">Memuat rekaman…</div>}
+        {feed === 'failed' && (
+          <p className="muted">
+            Video terbaru dari YouTube belum berhasil dimuat.{' '}
+            <a className="text-link" href={YOUTUBE_CHANNEL_URL} target="_blank" rel="noopener">
+              Buka channel-nya
+            </a>{' '}
+            atau muat ulang halaman ini.
+          </p>
+        )}
+        {channelOk && recordings.length === 0 && (
           <p className="muted">
             Belum ada rekaman di sini. Lihat{' '}
             <Link className="text-link" to="/agenda">
