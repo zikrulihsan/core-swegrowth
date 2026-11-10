@@ -160,6 +160,13 @@ Netlify membaca `netlify.toml`: `npm run build`, publish `build/client`, Node 22
 `VITE_SUPABASE_PUBLISHABLE_KEY` di environment Netlify. Agenda di halaman publik ikut diperbarui di browser, jadi
 event baru tampil tanpa deploy ulang.
 
+Halaman detail kegiatan publik (`/agenda/:slug`) di-prerender saat build supaya isinya langsung tampil; browser tetap
+mengambil data terbaru. Event baru (belum ada saat build) dilayani SPA sampai build berikutnya. Supaya HTML-nya ikut
+terbarui otomatis, buat build hook di Netlify → _Site configuration → Build & deploy → Build hooks_, lalu simpan URL-nya
+sebagai env `NETLIFY_BUILD_HOOK_URL`. Editor event memicu build lewat `/api/rebuild` (khusus admin) setiap kali event
+disimpan atau statusnya diubah. Kalau env Supabase diisi tapi slug gagal diambil saat build, build gagal dan deploy lama
+tetap tayang.
+
 ## Kontribusi
 
 Issue dan pull request terbuka untuk siapa saja. Baca [CONTRIBUTING.md](CONTRIBUTING.md) dan

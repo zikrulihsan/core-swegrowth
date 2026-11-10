@@ -127,7 +127,8 @@ export function recurrenceRule(a: Schedule) {
 export type CommunityGroup = CommunityGroupRow;
 
 export async function getCommunityGroups(): Promise<CommunityGroup[]> {
-  const db = client();
+  // Bisa dibaca semua orang (RLS), jadi tidak perlu menunggu sesi.
+  const db = anonSupabase();
   if (!db) return [];
   const { data, error } = await db.from('community_groups').select('*').order('sort_order').order('name');
   if (error) {
@@ -190,8 +191,21 @@ export const pastActivities = (list: Activity[], now = new Date()) =>
     )
     .sort((x, y) => (y.starts_at ?? '').localeCompare(x.starts_at ?? ''));
 
+/** Slug semua kegiatan publik, untuk prerender halaman detail saat build. */
+export async function getPublishedActivitySlugs(): Promise<string[]> {
+  const db = anonSupabase();
+  if (!db) return [];
+  const { data, error } = await db.from('activities').select('slug').eq('is_public', true);
+  if (error) {
+    console.error('Tidak dapat mengambil slug activity dari Supabase:', error.message);
+    return [];
+  }
+  return data.map((a) => a.slug);
+}
+
+// Filter is_public sama dengan RLS anon, jadi client tanpa sesi cukup (dan tidak menunggu auth).
 export async function getPublishedActivityBySlug(slug: string): Promise<Activity | null> {
-  const db = client();
+  const db = anonSupabase();
   if (!db) return null;
 
   const { data, error } = await db.from('activities').select('*').eq('slug', slug).eq('is_public', true).maybeSingle();
@@ -269,7 +283,7 @@ export function timeRange(a: Pick<Activity, 'starts_at' | 'ends_at'>) {
 }
 
 export async function fetchPublicStats(activityId: string) {
-  const { data } = await supabase().rpc('activity_public_stats', { p_activity_id: activityId }).maybeSingle();
+  const { data } = (await anonSupabase()?.rpc('activity_public_stats', { p_activity_id: activityId }).maybeSingle()) ?? {};
   return data ?? { confirmed: 0, waitlisted: 0 };
 }
 
@@ -341,12 +355,6 @@ export const slugify = (input: string) =>
 // ---------------------------------------------------------------------------
 // Peserta: ikuti, daftar, batal
 // ---------------------------------------------------------------------------
-
-export async function fetchOrganizer(groupId: string | null) {
-  if (!groupId) return null;
-  const { data } = await supabase().from('community_groups').select('*').eq('id', groupId).maybeSingle();
-  return data;
-}
 
 export async function isFollowing(activityId: string, userId: string) {
   const { data } = await supabase()

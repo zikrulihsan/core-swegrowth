@@ -4,8 +4,11 @@ export default [
   // Publik — di-prerender saat build (lihat react-router.config.ts)
   index('routes/home.tsx'),
   route('agenda', 'routes/agenda.tsx'),
-  // Detail event publik (SPA); daftar butuh login
-  route('agenda/:slug', 'routes/event.tsx'),
+  // Detail event publik, di-prerender per kegiatan kalau Supabase dikonfigurasi; daftar butuh login
+  route(
+    'agenda/:slug',
+    process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_PUBLISHABLE_KEY ? 'routes/event.tsx' : 'routes/event-spa.tsx',
+  ),
   route('agenda/:slug/daftar', 'routes/event-register.tsx'),
   route('agenda/:slug/terdaftar', 'routes/event-registered.tsx'),
   route('portal/agenda/:slug', 'routes/portal-event-redirect.tsx'),
