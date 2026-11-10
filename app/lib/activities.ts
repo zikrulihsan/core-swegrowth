@@ -154,8 +154,9 @@ export function client() {
   return hasSupabase ? supabase() : null;
 }
 
+// Filter is_public sama dengan RLS anon, jadi client tanpa sesi cukup (dan tidak menunggu auth).
 export async function getPublishedActivities(): Promise<Activity[]> {
-  const db = client();
+  const db = anonSupabase();
   if (!db) return [];
 
   const { data, error } = await db

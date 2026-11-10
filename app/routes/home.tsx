@@ -45,7 +45,7 @@ const load = async () => {
     live,
     pulse,
     activities: upcomingSessions(activities).slice(0, 3),
-    recordings: recordingsFrom(activities, channel).slice(0, 3),
+    recordings: recordingsFrom(activities, channel ?? []).slice(0, 3),
     // Acara dari luar tampil di agenda, jadi tidak diulang di rekomendasi pilihan.
     external: recommendations
       .filter((r) => r.category === 'acara')

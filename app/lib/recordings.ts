@@ -50,7 +50,8 @@ export function recordingsFrom(activities: Activity[], channel: ChannelVideo[] =
     .sort((x, y) => y.date.localeCompare(x.date));
 }
 
+/** `channelOk` false = feed YouTube gagal diambil, jadi daftarnya belum lengkap. */
 export async function getRecordings() {
   const [activities, channel] = await Promise.all([getPublishedActivities(), getChannelVideos()]);
-  return recordingsFrom(activities, channel);
+  return { recordings: recordingsFrom(activities, channel ?? []), channelOk: channel !== null };
 }
