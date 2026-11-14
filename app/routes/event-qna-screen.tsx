@@ -208,22 +208,25 @@ export default function EventQnaScreen({ loaderData: { activity: a } }: Route.Co
                   <span className="qna-screen-votes">
                     ▲ <b key={q.votes}>{q.votes}</b>
                   </span>
-                  <div>
+                  <div className="qna-screen-item">
                     <p>{q.body}</p>
-                    <span className="qna-screen-author">{author(q)}</span>
-                    {isAdmin && (
-                      <div className="qna-screen-actions">
-                        <button type="button" className="primary" onClick={() => highlight(q)}>
-                          Sorot ({i + 1})
-                        </button>
-                        <button type="button" onClick={() => run([{ q, change: { status: 'answered' } }])}>
-                          Terjawab
-                        </button>
-                        <button type="button" onClick={() => run([{ q, change: { status: 'hidden' } }])}>
-                          Sembunyikan
-                        </button>
-                      </div>
-                    )}
+                    {/* Tombol admin sebaris dengan nama penanya: tempatnya selalu ada, jadi tidak menutupi teks atau menggeser layout. */}
+                    <div className="qna-screen-row">
+                      <span className="qna-screen-author">{author(q)}</span>
+                      {isAdmin && (
+                        <div className="qna-screen-actions">
+                          <button type="button" className="primary" onClick={() => highlight(q)}>
+                            Sorot ({i + 1})
+                          </button>
+                          <button type="button" onClick={() => run([{ q, change: { status: 'answered' } }])}>
+                            Terjawab
+                          </button>
+                          <button type="button" onClick={() => run([{ q, change: { status: 'hidden' } }])}>
+                            Sembunyikan
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </li>
               ))}
