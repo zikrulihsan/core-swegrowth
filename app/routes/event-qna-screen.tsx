@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { data, Link, redirect } from 'react-router';
 import type { Route } from './+types/event-qna-screen';
-import { ChatIcon, Check, ChevronUpIcon, EyeOffIcon, ThumbUpIcon, UserIcon } from '~/components/Icons';
+import { ChatIcon, CheckCircleIcon, ChevronsUpIcon, EyeOffIcon, ThumbUpIcon, UserIcon } from '~/components/Icons';
 import { getPublishedActivityBySlug } from '~/lib/activities';
 import { fetchIsAdmin, requireUser } from '~/lib/auth';
 import type { QuestionStatus } from '~/lib/database.types';
@@ -150,10 +150,10 @@ export default function EventQnaScreen({ loaderData: { activity: a } }: Route.Co
         pressed={q.id === current?.id}
         onClick={() => toggleHighlight(q)}
       >
-        <ChevronUpIcon />
+        <ChevronsUpIcon />
       </IconButton>
       <IconButton label="Tandai terjawab" onClick={() => void setStatus(q, 'answered')}>
-        <Check />
+        <CheckCircleIcon />
       </IconButton>
       <IconButton label="Sembunyikan" onClick={() => void setStatus(q, 'hidden')}>
         <EyeOffIcon />

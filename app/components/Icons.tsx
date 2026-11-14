@@ -110,9 +110,16 @@ export const BriefcaseIcon = () => (
   </svg>
 );
 
-export const ChevronUpIcon = () => (
-  <svg {...stroke} strokeWidth={2.4}>
-    <path d="m6 15 6-6 6 6" />
+export const ChevronsUpIcon = () => (
+  <svg {...stroke} strokeWidth={2}>
+    <path d="m7 12 5-5 5 5M7 18l5-5 5 5" />
+  </svg>
+);
+
+export const CheckCircleIcon = () => (
+  <svg {...stroke} strokeWidth={2}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="m8.5 12.2 2.4 2.4 4.6-4.8" />
   </svg>
 );
 
