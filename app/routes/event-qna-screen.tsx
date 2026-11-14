@@ -1,18 +1,20 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { data, Link } from 'react-router';
 import type { Route } from './+types/event-qna-screen';
-import { Check, EyeOffIcon, StarIcon } from '~/components/Icons';
+import { ChatIcon, Check, EyeOffIcon, StarIcon, ThumbUpIcon, UserIcon } from '~/components/Icons';
 import { getPublishedActivityBySlug } from '~/lib/activities';
 import {
   applyModeration,
+  avatarHue,
   groupQuestions,
   moderateQuestion,
   nextToPresent,
   qnaErrorMessage,
   qnaPath,
-  sortQuestions,
+  screenQuestions,
   type Moderation,
   type Question,
+  type QuestionSort,
 } from '~/lib/qna';
 import { useQuestions } from '~/lib/use-questions';
 
@@ -35,15 +37,16 @@ export function HydrateFallback() {
 const POLL_MS = 4_000;
 /** Kontrol & kursor disembunyikan setelah mouse diam selama ini, supaya layar bersih untuk audiens. */
 const IDLE_MS = 2_500;
-const TOP_COUNT = 5;
+/** Kartu di layar (termasuk "pertanyaan terbaru"), muat satu layar 16:9. */
+const CARD_COUNT = 4;
 
 /**
  * Mode layar untuk proyektor/screen share, seperti Present mode di Slido:
- * pertanyaan yang disorot tampil besar, kalau tidak ada tampil pertanyaan
- * teratas. Admin memoderasi langsung dari sini; tombolnya hanya muncul saat
- * mouse bergerak, dan ada shortcut keyboard:
+ * kartu pertanyaan (populer/terbaru) plus pertanyaan terbaru di bawah; yang
+ * disorot tampil besar. Admin memoderasi langsung dari sini lewat ikon di
+ * kartu, tombol (muncul saat mouse bergerak), atau shortcut keyboard:
  *   → / N  tandai terjawab lalu sorot pertanyaan berikutnya
- *   1–5    sorot pertanyaan nomor itu
+ *   1–4    sorot kartu nomor itu
  *   0 / Esc lepas sorotan
  *   F      layar penuh
  */
@@ -51,11 +54,14 @@ export default function EventQnaScreen({ loaderData: { activity: a } }: Route.Co
   const { questions, mutate, refresh, isAdmin } = useQuestions(a.id, POLL_MS);
   const [active, setActive] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sort, setSort] = useState<QuestionSort>('popular');
   const busy = useRef(false);
 
   const groups = groupQuestions(questions ?? []);
   const current = groups.highlighted;
-  const top = sortQuestions(groups.open, 'popular').slice(0, TOP_COUNT);
+  const { list, latest } = screenQuestions(groups.open, sort, CARD_COUNT);
+  /** Urutan nomor shortcut 1–4 = urutan kartu di layar. */
+  const cards = latest ? [...list, latest] : list;
   const upNext = nextToPresent(questions ?? []);
   const joinUrl = typeof window === 'undefined' ? qnaPath(a) : `${window.location.host}${qnaPath(a)}`;
 
@@ -107,22 +113,20 @@ export default function EventQnaScreen({ loaderData: { activity: a } }: Route.Co
     [mutate, refresh],
   );
 
-  const highlight = useCallback((q: Question) => run([{ q, change: { is_highlighted: true } }]), [run]);
-  const release = useCallback(() => current && run([{ q: current, change: { is_highlighted: false } }]), [current, run]);
+  const highlight = (q: Question) => run([{ q, change: { is_highlighted: true } }]);
+  const release = () => current && run([{ q: current, change: { is_highlighted: false } }]);
   /**
    * Selesai membahas: vote terbanyak berikutnya disorot, lalu yang tadi
    * ditandai terjawab. Urutan ini membuat layar mana pun yang memuat data di
    * tengah-tengah tetap menampilkan sorotan, tidak sempat kosong.
    */
-  const next = useCallback(
-    () =>
-      run([
-        ...(upNext ? [{ q: upNext, change: { is_highlighted: true } }] : []),
-        ...(current ? [{ q: current, change: { status: 'answered' as const } }] : []),
-      ]),
-    [current, upNext, run],
-  );
+  const next = () =>
+    run([
+      ...(upNext ? [{ q: upNext, change: { is_highlighted: true } }] : []),
+      ...(current ? [{ q: current, change: { status: 'answered' as const } }] : []),
+    ]);
 
+  // Dipasang ulang tiap render supaya shortcut selalu memakai kartu & sorotan terbaru.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       // Tombol yang ditahan tidak diulang-ulang (bisa melompati beberapa pertanyaan).
@@ -140,27 +144,56 @@ export default function EventQnaScreen({ loaderData: { activity: a } }: Route.Co
       } else if (key === 'escape' || key === '0') {
         void release();
       } else if (/^[1-9]$/.test(key) && !current) {
-        const target = top[Number(key) - 1];
+        const target = cards[Number(key) - 1];
         if (target) void highlight(target);
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [isAdmin, next, release, highlight, current, top]);
+  });
+
+  const icons = (q: Question, n: number) =>
+    isAdmin && (
+      <span className="qna-screen-icons">
+        <IconButton label={`Sorot (${n})`} onClick={() => highlight(q)}>
+          <StarIcon />
+        </IconButton>
+        <IconButton label="Tandai terjawab" onClick={() => run([{ q, change: { status: 'answered' } }])}>
+          <Check />
+        </IconButton>
+        <IconButton label="Sembunyikan" onClick={() => run([{ q, change: { status: 'hidden' } }])}>
+          <EyeOffIcon />
+        </IconButton>
+      </span>
+    );
 
   return (
     <div className={`qna-screen ${active ? '' : 'idle'}`}>
       <header className="qna-screen-head">
-        <div>
-          <span className="qna-screen-kicker">Tanya jawab{a.qna_status === 'closed' ? ' · ditutup' : ''}</span>
-          <h1>{a.title}</h1>
+        <div className="qna-screen-title">
+          <ChatIcon />
+          <b>Tanya jawab</b>
+          <span>
+            {a.title}
+            {a.qna_status === 'closed' ? ' · ditutup' : ''}
+          </span>
         </div>
-        {a.qna_status === 'open' && (
-          <p className="qna-screen-join">
-            Kirim & vote pertanyaan di
-            <b>{joinUrl}</b>
-          </p>
-        )}
+        <div className="qna-screen-tools">
+          {a.qna_status === 'open' && (
+            <span className="qna-screen-join">
+              Kirim & vote di <b>{joinUrl}</b>
+            </span>
+          )}
+          {!current && (
+            <select aria-label="Urutkan" value={sort} onChange={(e) => setSort(e.target.value as QuestionSort)}>
+              <option value="popular">Populer</option>
+              <option value="recent">Terbaru</option>
+            </select>
+          )}
+          <span className="qna-screen-count" title="Pertanyaan belum dijawab">
+            <ChatIcon /> {groups.open.length}
+          </span>
+        </div>
       </header>
 
       <main className="qna-screen-main">
@@ -171,10 +204,7 @@ export default function EventQnaScreen({ loaderData: { activity: a } }: Route.Co
         ) : current ? (
           <section className="qna-screen-focus" aria-live="polite" key={current.id}>
             <span className="qna-screen-label">Sedang dibahas</span>
-            <p className={`qna-screen-text ${current.body.length > 220 ? 'long' : ''}`}>{current.body}</p>
-            <p className="qna-screen-meta">
-              {author(current)} · ▲ {current.votes} vote
-            </p>
+            <Card q={current} big />
             {isAdmin && (
               <div className="qna-screen-actions">
                 <button type="button" className="primary" onClick={next}>
@@ -190,7 +220,7 @@ export default function EventQnaScreen({ loaderData: { activity: a } }: Route.Co
             )}
             {isAdmin && upNext && <p className="qna-screen-upnext">Berikutnya: {upNext.body}</p>}
           </section>
-        ) : top.length === 0 ? (
+        ) : cards.length === 0 ? (
           <p className="qna-screen-empty">
             Belum ada pertanyaan.
             {a.qna_status === 'open' && (
@@ -201,38 +231,20 @@ export default function EventQnaScreen({ loaderData: { activity: a } }: Route.Co
             )}
           </p>
         ) : (
-          <section>
-            <span className="qna-screen-label">Pertanyaan teratas</span>
-            <ol className="qna-screen-list">
-              {top.map((q, i) => (
-                <li key={q.id}>
-                  <span className="qna-screen-votes">
-                    ▲ <b key={q.votes}>{q.votes}</b>
-                  </span>
-                  <div className="qna-screen-item">
-                    <p>{q.body}</p>
-                    {/* Tombol admin sebaris dengan nama penanya: tempatnya selalu ada, jadi tidak menutupi teks atau menggeser layout. */}
-                    <div className="qna-screen-row">
-                      <span className="qna-screen-author">{author(q)}</span>
-                      {isAdmin && (
-                        <div className="qna-screen-icons">
-                          <IconButton label={`Sorot (${i + 1})`} onClick={() => highlight(q)}>
-                            <StarIcon />
-                          </IconButton>
-                          <IconButton label="Tandai terjawab" onClick={() => run([{ q, change: { status: 'answered' } }])}>
-                            <Check />
-                          </IconButton>
-                          <IconButton label="Sembunyikan" onClick={() => run([{ q, change: { status: 'hidden' } }])}>
-                            <EyeOffIcon />
-                          </IconButton>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ol>
-            {groups.open.length > top.length && <p className="qna-screen-more">+{groups.open.length - top.length} pertanyaan lainnya</p>}
+          <section className="qna-screen-cards">
+            {list.map((q, i) => (
+              <Card key={q.id} q={q}>
+                {icons(q, i + 1)}
+              </Card>
+            ))}
+            {latest && (
+              <>
+                <p className="qna-screen-divider">Pertanyaan terbaru</p>
+                <Card key={latest.id} q={latest}>
+                  {icons(latest, list.length + 1)}
+                </Card>
+              </>
+            )}
           </section>
         )}
         {error && <p className="qna-screen-error">{error}</p>}
@@ -242,7 +254,7 @@ export default function EventQnaScreen({ loaderData: { activity: a } }: Route.Co
         <Link to={qnaPath(a)}>← Keluar</Link>
         {isAdmin && (
           <span>
-            → lanjut · 1–{TOP_COUNT} sorot · 0/Esc lepas · {groups.open.length} belum dijawab · {groups.answered.length} terjawab
+            → lanjut · 1–{CARD_COUNT} sorot · 0/Esc lepas · {groups.answered.length} terjawab
           </span>
         )}
         <button type="button" onClick={() => void toggleFullscreen()}>
@@ -250,6 +262,47 @@ export default function EventQnaScreen({ loaderData: { activity: a } }: Route.Co
         </button>
       </footer>
     </div>
+  );
+}
+
+/** Kartu pertanyaan: penanya & vote di atas, pertanyaan di bawah. Ikon admin sebaris dengan vote, tidak menutupi teks. */
+function Card({ q, big, children }: { q: Question; big?: boolean; children?: ReactNode }) {
+  const long = q.body.length > (big ? 220 : 160);
+  return (
+    <article className={`qna-card ${big ? 'big' : ''} ${long ? 'long' : ''}`}>
+      <div className="qna-card-head">
+        <ScreenAvatar q={q} />
+        <span className="qna-card-name">{author(q)}</span>
+        <span className="qna-card-side">
+          {children}
+          <span className="qna-card-votes">
+            <b key={q.votes}>{q.votes}</b>
+            <ThumbUpIcon />
+          </span>
+        </span>
+      </div>
+      <p className="qna-card-text">{q.body}</p>
+    </article>
+  );
+}
+
+function ScreenAvatar({ q }: { q: Question }) {
+  if (q.is_anonymous) {
+    return (
+      <span className="qna-avatar anon" aria-hidden="true">
+        <UserIcon />
+      </span>
+    );
+  }
+  const name = author(q);
+  if (q.author_avatar_url) {
+    return <img className="qna-avatar" src={q.author_avatar_url} alt="" referrerPolicy="no-referrer" />;
+  }
+  const hue = avatarHue(name);
+  return (
+    <span className="qna-avatar" aria-hidden="true" style={{ background: `hsl(${hue} 70% 93%)`, color: `hsl(${hue} 45% 35%)` }}>
+      {name.trim().charAt(0).toUpperCase()}
+    </span>
   );
 }
 

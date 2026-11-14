@@ -54,6 +54,27 @@ export function nextToPresent(list: Question[]) {
   );
 }
 
+/**
+ * Isi mode layar: pertanyaan teratas sesuai urutan, plus "pertanyaan
+ * terbaru" di bawahnya kalau yang terbaru belum masuk daftar (seperti
+ * Slido). Total kartu tetap `count` supaya muat satu layar.
+ */
+export function screenQuestions(open: Question[], sort: QuestionSort, count = 4) {
+  const sorted = sortQuestions(open, sort);
+  const newest = sortQuestions(open, 'recent')[0] ?? null;
+  if (sort === 'recent' || !newest || sorted.slice(0, count).some((q) => q.id === newest.id)) {
+    return { list: sorted.slice(0, count), latest: null };
+  }
+  return { list: sorted.slice(0, count - 1), latest: newest };
+}
+
+/** Warna lembut avatar inisial, tetap sama untuk nama yang sama. */
+export function avatarHue(name: string) {
+  let hash = 0;
+  for (const ch of name) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+  return hash % 360;
+}
+
 export type Moderation = { status?: QuestionStatus; is_highlighted?: boolean };
 
 /**

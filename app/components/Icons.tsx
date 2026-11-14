@@ -122,3 +122,16 @@ export const EyeOffIcon = () => (
     <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18" />
   </svg>
 );
+
+export const ThumbUpIcon = () => (
+  <svg {...stroke} strokeWidth={2}>
+    <path d="M7 10v11H4V10zM7 10l4-7a2.5 2.5 0 0 1 2.6 3L13 10h5.5a2 2 0 0 1 2 2.4l-1.4 7A2 2 0 0 1 17.1 21H7" />
+  </svg>
+);
+
+export const UserIcon = () => (
+  <svg {...stroke} strokeWidth={2}>
+    <circle cx="12" cy="8" r="4" />
+    <path d="M4 21a8 8 0 0 1 16 0" />
+  </svg>
+);

@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { applyModeration, applyVote, groupQuestions, nextToPresent, sortQuestions, timeAgo, type Question } from './qna';
+import {
+  applyModeration,
+  applyVote,
+  avatarHue,
+  groupQuestions,
+  screenQuestions,
+  nextToPresent,
+  sortQuestions,
+  timeAgo,
+  type Question,
+} from './qna';
 
 const q = (id: string, patch: Partial<Question> = {}): Question => ({
   id,
@@ -122,5 +132,43 @@ describe('applyVote', () => {
     const once = applyVote([q('a', { votes: 2 })], 'a');
     expect(once[0]).toMatchObject({ voted: true, votes: 3 });
     expect(applyVote(once, 'a')[0]).toMatchObject({ voted: false, votes: 2 });
+  });
+});
+
+describe('screenQuestions', () => {
+  const list = [
+    q('a', { votes: 9, created_at: '2026-11-14T10:00:00Z' }),
+    q('b', { votes: 7, created_at: '2026-11-14T10:01:00Z' }),
+    q('c', { votes: 5, created_at: '2026-11-14T10:02:00Z' }),
+    q('d', { votes: 3, created_at: '2026-11-14T10:03:00Z' }),
+    q('e', { votes: 0, created_at: '2026-11-14T10:09:00Z' }),
+  ];
+
+  it('3 teratas + pertanyaan terbaru di bawah', () => {
+    const { list: top, latest } = screenQuestions(list, 'popular');
+    expect(top.map((x) => x.id)).toEqual(['a', 'b', 'c']);
+    expect(latest?.id).toBe('e');
+  });
+
+  it('terbaru sudah masuk daftar: tanpa bagian terbaru, 4 kartu', () => {
+    const { list: top, latest } = screenQuestions(list.slice(0, 4), 'popular');
+    expect(top.map((x) => x.id)).toEqual(['a', 'b', 'c', 'd']);
+    expect(latest).toBeNull();
+  });
+
+  it('urutan terbaru: tanpa bagian terbaru', () => {
+    expect(screenQuestions(list, 'recent').latest).toBeNull();
+  });
+
+  it('kosong', () => {
+    expect(screenQuestions([], 'popular')).toEqual({ list: [], latest: null });
+  });
+});
+
+describe('avatarHue', () => {
+  it('stabil dan dalam rentang', () => {
+    expect(avatarHue('Paman')).toBe(avatarHue('Paman'));
+    expect(avatarHue('Paman')).toBeGreaterThanOrEqual(0);
+    expect(avatarHue('Paman')).toBeLessThan(360);
   });
 });
