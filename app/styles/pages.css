@@ -2141,16 +2141,22 @@ a.contrib-maker:hover {
 .qna-tabs {
   display: flex;
   gap: 4px;
-  overflow-x: auto;
   flex: 1 1 auto;
-  border-bottom: 1px solid var(--line);
+  /* Bisa digeser di layar sempit, tanpa scrollbar (vertikal maupun horizontal). */
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  /* Garis bawah digambar di dalam kotak supaya tidak dianggap isi yang meluap. */
+  box-shadow: inset 0 -1px 0 var(--line);
+}
+.qna-tabs::-webkit-scrollbar {
+  display: none;
 }
 .qna-tabs button {
   padding: 10px 8px;
   font-size: 0.94rem;
   border: 0;
   border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
   background: none;
   color: var(--ink-soft);
   font: inherit;
@@ -2335,16 +2341,20 @@ a.contrib-maker:hover {
   position: fixed;
   inset: 0;
   z-index: 1000;
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  gap: clamp(8px, 2vh, 20px);
-  padding: clamp(12px, 2.6vh, 28px) clamp(16px, 3.5vw, 48px);
+  /* Kiri disisakan untuk tombol kembali & dock, seperti Slido. */
+  padding: clamp(12px, 2.6vh, 28px) clamp(16px, 3.5vw, 48px) clamp(12px, 2.6vh, 28px) clamp(84px, 9vw, 150px);
   overflow: auto;
   background: var(--s-bg);
   color: var(--s-text);
 }
 .qna-screen.idle {
   cursor: none;
+}
+.qna-screen-content {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: clamp(8px, 2vh, 20px);
+  min-height: 100%;
 }
 .qna-screen svg {
   width: 1.1em;
@@ -2558,39 +2568,140 @@ a.contrib-maker:hover {
   border-color: var(--yellow);
   color: #2b2508;
 }
-.qna-screen-bar {
+/* Tombol kembali (kiri atas) & dock (kiri bawah) seperti Slido; memudar saat mouse diam. */
+.qna-screen-back,
+.qna-screen-dock {
+  position: fixed;
+  left: clamp(16px, 2.6vw, 40px);
+  z-index: 1;
+  transition: opacity 0.3s var(--ease);
+}
+.qna-screen-back {
+  top: clamp(16px, 3vh, 32px);
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #1d1d1f;
+  /* Sejajar tengah dengan dock di bawahnya. */
+  color: #fff;
+}
+.qna-screen-back svg {
+  width: 22px;
+  height: 22px;
+}
+.qna-screen-dock {
+  bottom: clamp(16px, 3vh, 32px);
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+.qna-screen-dock-bar {
+  /* Vertikal supaya muat di kolom kiri dan tidak menimpa kartu. */
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  background: #1d1d1f;
+}
+.qna-screen-dock-bar button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+}
+.qna-screen-dock-bar button svg {
+  width: 24px;
+  height: 24px;
+}
+.qna-screen-dock-bar button:hover,
+.qna-screen-dock-bar button.on {
+  background: #3a3a3d;
+}
+.qna-screen-dock-bar button:disabled {
+  opacity: 0.5;
+  cursor: progress;
+}
+.qna-screen-menu {
+  display: grid;
+  width: 330px;
+  max-width: calc(100vw - 32px);
+  padding: 8px;
+  border-radius: 12px;
+  background: #1d1d1f;
+  color: #fff;
+  font-size: 0.95rem;
+}
+.qna-screen-menu > button,
+.qna-screen-menu > a {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px 16px;
-  flex-wrap: wrap;
-  color: var(--s-muted);
-  font-size: 0.85rem;
-  transition: opacity 0.3s var(--ease);
-}
-.qna-screen-bar-actions {
-  display: flex;
-  gap: 8px;
-}
-.qna-screen-bar button {
-  padding: 7px 14px;
-  border: 1px solid var(--s-line);
-  border-radius: 999px;
-  background: var(--s-card);
-  color: var(--s-text);
+  gap: 12px;
+  padding: 11px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
   font: inherit;
-  font-size: 0.9rem;
-  font-weight: 600;
+  text-align: left;
   cursor: pointer;
 }
-.qna-screen-bar button:hover {
-  border-color: var(--s-muted);
+.qna-screen-menu > button:hover,
+.qna-screen-menu > a:hover {
+  background: #3a3a3d;
 }
-.qna-screen-bar a {
-  color: var(--s-text);
-  font-weight: 600;
+.qna-screen-menu svg {
+  width: 18px;
+  height: 18px;
 }
-.qna-screen.idle .qna-screen-bar {
+.qna-screen-menu-size {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+  padding: 12px 12px 6px;
+  border-top: 1px solid #3a3a3d;
+}
+.qna-screen-menu-size span {
+  margin-right: auto;
+}
+.qna-screen-menu-size b {
+  min-width: 3.2em;
+  text-align: center;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.qna-screen-menu-size button {
+  width: 36px;
+  height: 36px;
+  border: 1px solid #5a5a5e;
+  border-radius: 50%;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+.qna-screen-menu-size button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.qna-screen-menu-help {
+  padding: 8px 12px 6px;
+  color: #a1a1a6;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+.qna-screen.idle .qna-screen-back,
+.qna-screen.idle .qna-screen-dock {
   opacity: 0;
   pointer-events: none;
 }
