@@ -4,8 +4,9 @@ import type { Route } from './+types/event-qna';
 import { Avatar } from '~/components/Avatar';
 import { GoogleSignIn } from '~/components/GoogleSignIn';
 import { activityPath, getPublishedActivityBySlug } from '~/lib/activities';
-import type { QuestionStatus } from '~/lib/database.types';
 import {
+  applyModeration,
+  applyVote,
   askQuestion,
   deleteQuestion,
   groupQuestions,
@@ -17,6 +18,7 @@ import {
   sortQuestions,
   timeAgo,
   toggleVote,
+  type Moderation,
   type Question,
   type QuestionSort,
   type QuestionTab,
@@ -46,20 +48,17 @@ const POLL_MS = 10_000;
  * Admin memoderasi langsung dari halaman ini (sorot, tandai terjawab, sembunyikan).
  */
 export default function EventQna({ loaderData: { activity: a } }: Route.ComponentProps) {
-  const { questions, setQuestions, loadError, now, refresh, loading, signedIn, isAdmin } = useQuestions(a.id, POLL_MS);
+  const { questions, mutate, loadError, now, refresh, loading, signedIn, isAdmin } = useQuestions(a.id, POLL_MS);
   const [tab, setTab] = useState<QuestionTab>('open');
   const [sort, setSort] = useState<QuestionSort>('popular');
   const [error, setError] = useState<string | null>(null);
 
   const open = a.qna_status === 'open';
 
-  const patch = (id: string, change: Partial<Question>) =>
-    setQuestions((list) => list?.map((q) => (q.id === id ? { ...q, ...change } : q)) ?? null);
-
   const vote = async (q: Question) => {
     setError(null);
     // Optimistis: langsung berubah, dibetulkan dari server kalau gagal.
-    patch(q.id, { voted: !q.voted, votes: q.votes + (q.voted ? -1 : 1) });
+    mutate((list) => applyVote(list, q.id));
     const { error: rpcError } = await toggleVote(q.id);
     if (rpcError) {
       setError(qnaErrorMessage(rpcError.message));
@@ -69,13 +68,15 @@ export default function EventQna({ loaderData: { activity: a } }: Route.Componen
 
   const remove = async (q: Question) => {
     if (!confirm(q.is_mine ? 'Tarik pertanyaan ini?' : 'Hapus pertanyaan ini permanen?')) return;
+    mutate((list) => list.filter((x) => x.id !== q.id));
     const { error: dbError } = await deleteQuestion(q.id);
     if (dbError) setError(qnaErrorMessage(dbError.message));
     await refresh();
   };
 
-  const moderate = async (q: Question, change: { status?: QuestionStatus; is_highlighted?: boolean }) => {
+  const moderate = async (q: Question, change: Moderation) => {
     setError(null);
+    mutate((list) => applyModeration(list, q.id, change));
     const { error: dbError } = await moderateQuestion(q.id, change);
     if (dbError) setError(qnaErrorMessage(dbError.message));
     await refresh();
@@ -268,7 +269,7 @@ type ItemProps = {
   now: Date;
   vote: (q: Question) => void;
   remove: (q: Question) => void;
-  moderate: (q: Question, change: { status?: QuestionStatus; is_highlighted?: boolean }) => void;
+  moderate: (q: Question, change: Moderation) => void;
 };
 
 function QuestionItem({ q, canVote, isAdmin, now, vote, remove, moderate }: ItemProps) {

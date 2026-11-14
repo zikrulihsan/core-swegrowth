@@ -54,6 +54,27 @@ export function nextToPresent(list: Question[]) {
   );
 }
 
+export type Moderation = { status?: QuestionStatus; is_highlighted?: boolean };
+
+/**
+ * Perubahan moderasi diterapkan ke daftar lokal, sama seperti trigger di
+ * database: sorotan hanya satu per event, dan yang dijawab/disembunyikan
+ * tidak lagi disorot.
+ */
+export function applyModeration(list: Question[], id: string, change: Moderation, now = new Date()) {
+  return list.map((q) => {
+    if (q.id !== id) return change.is_highlighted ? { ...q, is_highlighted: false } : q;
+    const next = { ...q, ...change };
+    if (next.status !== 'open') next.is_highlighted = false;
+    if (change.status) next.answered_at = change.status === 'answered' ? (q.answered_at ?? now.toISOString()) : null;
+    return next;
+  });
+}
+
+/** Vote dibalik di daftar lokal (optimistis). */
+export const applyVote = (list: Question[], id: string) =>
+  list.map((q) => (q.id === id ? { ...q, voted: !q.voted, votes: q.votes + (q.voted ? -1 : 1) } : q));
+
 /** "baru saja", "5 menit lalu", "3 jam lalu", lalu tanggal. */
 export function timeAgo(ts: string, now = new Date()) {
   const minutes = Math.floor((now.getTime() - Date.parse(ts)) / 60_000);
@@ -92,7 +113,7 @@ export const toggleVote = (questionId: string) => supabase().rpc('toggle_questio
 export const deleteQuestion = (questionId: string) => supabase().from('activity_questions').delete().eq('id', questionId);
 
 /** Moderasi admin (RLS khusus admin). */
-export const moderateQuestion = (questionId: string, patch: { status?: QuestionStatus; is_highlighted?: boolean }) =>
+export const moderateQuestion = (questionId: string, patch: Moderation) =>
   supabase().from('activity_questions').update(patch).eq('id', questionId);
 
 export const setQnaStatus = (activityId: string, qna_status: QnaStatus) =>

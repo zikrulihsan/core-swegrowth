@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { groupQuestions, nextToPresent, sortQuestions, timeAgo, type Question } from './qna';
+import { applyModeration, applyVote, groupQuestions, nextToPresent, sortQuestions, timeAgo, type Question } from './qna';
 
 const q = (id: string, patch: Partial<Question> = {}): Question => ({
   id,
@@ -89,5 +89,38 @@ describe('nextToPresent', () => {
 
   it('null kalau tidak ada lagi', () => {
     expect(nextToPresent([q('a', { status: 'answered' })])).toBeNull();
+  });
+});
+
+describe('applyModeration', () => {
+  const list = [q('a', { is_highlighted: true }), q('b'), q('c')];
+
+  it('sorotan pindah: yang lain lepas', () => {
+    const out = applyModeration(list, 'b', { is_highlighted: true });
+    expect(out.filter((x) => x.is_highlighted).map((x) => x.id)).toEqual(['b']);
+  });
+
+  it('terjawab: lepas sorotan dan dapat waktu jawab', () => {
+    const now = new Date('2026-11-14T12:00:00Z');
+    const a = applyModeration(list, 'a', { status: 'answered' }, now)[0];
+    expect(a).toMatchObject({ status: 'answered', is_highlighted: false, answered_at: now.toISOString() });
+  });
+
+  it('dibuka lagi: waktu jawab dihapus', () => {
+    const answered = [q('a', { status: 'answered', answered_at: '2026-11-14T11:00:00Z' })];
+    expect(applyModeration(answered, 'a', { status: 'open' })[0].answered_at).toBeNull();
+  });
+
+  it('tidak mengubah array asli', () => {
+    applyModeration(list, 'b', { is_highlighted: true });
+    expect(list[0].is_highlighted).toBe(true);
+  });
+});
+
+describe('applyVote', () => {
+  it('vote dan batal vote', () => {
+    const once = applyVote([q('a', { votes: 2 })], 'a');
+    expect(once[0]).toMatchObject({ voted: true, votes: 3 });
+    expect(applyVote(once, 'a')[0]).toMatchObject({ voted: false, votes: 2 });
   });
 });

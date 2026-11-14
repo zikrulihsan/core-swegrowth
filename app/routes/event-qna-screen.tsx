@@ -2,8 +2,17 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { data, Link } from 'react-router';
 import type { Route } from './+types/event-qna-screen';
 import { getPublishedActivityBySlug } from '~/lib/activities';
-import type { QuestionStatus } from '~/lib/database.types';
-import { groupQuestions, moderateQuestion, nextToPresent, qnaErrorMessage, qnaPath, sortQuestions, type Question } from '~/lib/qna';
+import {
+  applyModeration,
+  groupQuestions,
+  moderateQuestion,
+  nextToPresent,
+  qnaErrorMessage,
+  qnaPath,
+  sortQuestions,
+  type Moderation,
+  type Question,
+} from '~/lib/qna';
 import { useQuestions } from '~/lib/use-questions';
 
 export const meta: Route.MetaFunction = ({ loaderData }) => [
@@ -38,7 +47,7 @@ const TOP_COUNT = 5;
  *   F      layar penuh
  */
 export default function EventQnaScreen({ loaderData: { activity: a } }: Route.ComponentProps) {
-  const { questions, refresh, isAdmin } = useQuestions(a.id, POLL_MS);
+  const { questions, mutate, refresh, isAdmin } = useQuestions(a.id, POLL_MS);
   const [active, setActive] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const busy = useRef(false);
@@ -66,40 +75,57 @@ export default function EventQnaScreen({ loaderData: { activity: a } }: Route.Co
     };
   }, []);
 
-  /** Jalankan beberapa perubahan berurutan, satu aksi dalam satu waktu (tombol & shortcut bisa beruntun). */
+  /**
+   * Jalankan beberapa perubahan berurutan, satu aksi dalam satu waktu (tombol &
+   * shortcut bisa beruntun). Layar langsung berubah; database menyusul.
+   */
   const run = useCallback(
-    async (steps: { q: Question; change: { status?: QuestionStatus; is_highlighted?: boolean } }[]) => {
+    async (steps: { q: Question; change: Moderation }[]) => {
       if (busy.current || steps.length === 0) return;
       busy.current = true;
       setError(null);
-      for (const { q, change } of steps) {
-        const { error: dbError } = await moderateQuestion(q.id, change);
-        if (dbError) {
-          setError(qnaErrorMessage(dbError.message));
-          break;
+      mutate((list) => steps.reduce((acc, { q, change }) => applyModeration(acc, q.id, change), list));
+      try {
+        for (const { q, change } of steps) {
+          const { error: dbError } = await moderateQuestion(q.id, change);
+          if (dbError) {
+            setError(qnaErrorMessage(dbError.message));
+            break;
+          }
         }
+      } catch {
+        setError(qnaErrorMessage(undefined));
+      } finally {
+        busy.current = false;
+        // Buang hasil polling yang terambil di tengah langkah-langkah tadi, lalu
+        // ambil ulang: data server selalu jadi patokan akhir (juga kalau ada yang gagal).
+        mutate((list) => list);
+        void refresh();
       }
-      await refresh();
-      busy.current = false;
     },
-    [refresh],
+    [mutate, refresh],
   );
 
   const highlight = useCallback((q: Question) => run([{ q, change: { is_highlighted: true } }]), [run]);
   const release = useCallback(() => current && run([{ q: current, change: { is_highlighted: false } }]), [current, run]);
-  /** Selesai membahas: yang sekarang ditandai terjawab, lalu vote terbanyak berikutnya disorot. */
+  /**
+   * Selesai membahas: vote terbanyak berikutnya disorot, lalu yang tadi
+   * ditandai terjawab. Urutan ini membuat layar mana pun yang memuat data di
+   * tengah-tengah tetap menampilkan sorotan, tidak sempat kosong.
+   */
   const next = useCallback(
     () =>
       run([
-        ...(current ? [{ q: current, change: { status: 'answered' as const } }] : []),
         ...(upNext ? [{ q: upNext, change: { is_highlighted: true } }] : []),
+        ...(current ? [{ q: current, change: { status: 'answered' as const } }] : []),
       ]),
     [current, upNext, run],
   );
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      // Tombol yang ditahan tidak diulang-ulang (bisa melompati beberapa pertanyaan).
+      if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
       const key = e.key.toLowerCase();
       if (key === 'f') {
         e.preventDefault();
@@ -144,7 +170,7 @@ export default function EventQnaScreen({ loaderData: { activity: a } }: Route.Co
         ) : current ? (
           <section className="qna-screen-focus" aria-live="polite" key={current.id}>
             <span className="qna-screen-label">Sedang dibahas</span>
-            <p className="qna-screen-text">{current.body}</p>
+            <p className={`qna-screen-text ${current.body.length > 220 ? 'long' : ''}`}>{current.body}</p>
             <p className="qna-screen-meta">
               {author(current)} · ▲ {current.votes} vote
             </p>
@@ -208,7 +234,7 @@ export default function EventQnaScreen({ loaderData: { activity: a } }: Route.Co
         {error && <p className="qna-screen-error">{error}</p>}
       </main>
 
-      <footer className="qna-screen-bar" aria-hidden={!active}>
+      <footer className="qna-screen-bar">
         <Link to={qnaPath(a)}>← Keluar</Link>
         {isAdmin && (
           <span>
