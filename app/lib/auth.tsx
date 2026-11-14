@@ -24,7 +24,7 @@ export async function fetchProfile(userId: string) {
   return data;
 }
 
-async function fetchIsAdmin() {
+export async function fetchIsAdmin() {
   const { data } = await supabase().rpc('is_admin');
   return data === true;
 }

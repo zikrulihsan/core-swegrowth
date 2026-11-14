@@ -17,6 +17,7 @@ import {
 import { fetchProfile, requireUser } from '~/lib/auth';
 import { formatWibDate, formatWibTime } from '~/lib/format';
 import { fetchMotivation, isOnboarded } from '~/lib/profile';
+import { qnaPath } from '~/lib/qna';
 
 export const meta: Route.MetaFunction = ({ loaderData }) => [
   { title: `Terdaftar: ${loaderData?.activity.title ?? 'Kegiatan'} — SWE Growth` },
@@ -142,6 +143,15 @@ export default function EventRegistered({ loaderData }: Route.ComponentProps) {
                   <strong>Link meeting</strong>
                   <MeetingLink confirmed={confirmed} links={links} onRefresh={() => revalidator.revalidate()} />
                 </li>
+                {a.qna_status === 'open' && (
+                  <li>
+                    <strong>Kirim pertanyaan untuk pembicara</strong>
+                    <span>Tulis pertanyaanmu dan vote pertanyaan peserta lain. Yang paling banyak vote dibahas lebih dulu.</span>
+                    <Link className="btn btn-ghost sm" to={qnaPath(a)}>
+                      Buka tanya jawab
+                    </Link>
+                  </li>
+                )}
                 {(a.next_steps ?? []).map((step, i) => (
                   <li key={i}>
                     <strong>{step.title}</strong>

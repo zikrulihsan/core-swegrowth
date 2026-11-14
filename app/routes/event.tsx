@@ -33,6 +33,7 @@ import {
 import { useAuth } from '~/lib/auth';
 import type { RegistrationStatus } from '~/lib/database.types';
 import { formatWibDate, formatWibDay, formatWibTime } from '~/lib/format';
+import { qnaPath } from '~/lib/qna';
 import { pageMeta } from '~/lib/site';
 import { youtubeId } from '~/lib/youtube';
 
@@ -147,6 +148,22 @@ export default function EventPage({ loaderData: { activity: a, stats, organizer,
                   Tonton di YouTube
                 </a>
               </p>
+            </section>
+          )}
+
+          {a.qna_status !== 'off' && (
+            <section className="event-section event-qna-cta">
+              <div>
+                <h2>Tanya jawab</h2>
+                <p className="muted">
+                  {a.qna_status === 'open'
+                    ? 'Kirim pertanyaan untuk pembicara dan vote pertanyaan yang paling ingin kamu dengar jawabannya.'
+                    : 'Lihat pertanyaan peserta dan mana saja yang sudah dijawab.'}
+                </p>
+              </div>
+              <Link className="btn btn-ghost" to={qnaPath(a)}>
+                {a.qna_status === 'open' ? 'Ajukan pertanyaan' : 'Lihat pertanyaan'}
+              </Link>
             </section>
           )}
 

@@ -4,6 +4,7 @@ import type { Route } from './+types/admin-event';
 import { CalendarPanel } from '~/components/admin-event/CalendarPanel';
 import { CopyLink, EditorSection, PosterButton } from '~/components/admin-event/EditorParts';
 import { PhotosEditor } from '~/components/admin-event/PhotosEditor';
+import { QnaPanel } from '~/components/admin-event/QnaPanel';
 import { Registrants } from '~/components/admin-event/Registrants';
 import { FieldsEditor, NextStepsEditor } from '~/components/admin-event/RegistrationEditors';
 import { Stats } from '~/components/admin-event/Stats';
@@ -23,8 +24,9 @@ import {
 import { loadEventEditor, requestRebuild, saveActivity } from '~/lib/admin-data';
 import { Field, isoToWib, useMutation, val, wibToIso } from '~/lib/admin-form';
 import { requireAdmin } from '~/lib/auth';
-import type { ActivityStatus, EventPhoto, NextStep, Recurrence, RegistrationField } from '~/lib/database.types';
+import type { ActivityStatus, EventPhoto, NextStep, QnaStatus, Recurrence, RegistrationField } from '~/lib/database.types';
 import { formatWibDate, formatWibTime } from '~/lib/format';
+import { QNA_STATUS_LABEL } from '~/lib/qna';
 import { SITE_URL } from '~/lib/site';
 import { YOUTUBE_URL_PATTERN, youtubeId } from '~/lib/youtube';
 
@@ -98,6 +100,7 @@ export default function AdminEvent({ loaderData }: Route.ComponentProps) {
       photos: JSON.parse(val(form, 'photos') || '[]') as EventPhoto[],
       youtube_url: val(form, 'youtube_url') || null,
       status: val(form, 'status') as ActivityStatus,
+      qna_status: (val(form, 'qna_status') || 'open') as QnaStatus,
       price_idr: Number.parseInt(val(form, 'price_idr') || '0', 10),
       capacity: capacity ? Number.parseInt(capacity, 10) : null,
       registration_fields: JSON.parse(val(form, 'registration_fields') || '[]') as RegistrationField[],
@@ -376,6 +379,19 @@ export default function AdminEvent({ loaderData }: Route.ComponentProps) {
                   defaultValue={a?.capacity ?? ''}
                 />
               </Field>
+              <Field
+                id="qna_status"
+                label="Tanya jawab"
+                hint="Halaman /tanya: peserta bertanya & vote, admin menandai terjawab. Ditutup = daftar tetap bisa dibaca."
+              >
+                <select id="qna_status" name="qna_status" defaultValue={a?.qna_status ?? 'open'}>
+                  {(Object.keys(QNA_STATUS_LABEL) as QnaStatus[]).map((s) => (
+                    <option key={s} value={s}>
+                      {QNA_STATUS_LABEL[s]}
+                    </option>
+                  ))}
+                </select>
+              </Field>
             </div>
             <FieldsEditor initial={a?.registration_fields ?? DEFAULT_FIELDS} />
             <label className="check-field">
@@ -448,6 +464,8 @@ export default function AdminEvent({ loaderData }: Route.ComponentProps) {
             )}
           </div>
         </form>
+
+        {a && <QnaPanel activity={a} />}
 
         {a && <Registrants activityTitle={a.title} fields={a.registration_fields} rows={registrations} />}
       </div>
