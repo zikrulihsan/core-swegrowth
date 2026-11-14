@@ -151,7 +151,18 @@ describe('screenQuestions', () => {
   });
 
   it('kosong', () => {
-    expect(screenQuestions([], 'popular')).toEqual({ list: [], latest: null });
+    expect(screenQuestions([], 'popular')).toEqual({ current: null, list: [], latest: null });
+  });
+
+  it('yang disorot naik ke paling atas, total kartu tetap', () => {
+    const { current, list: top, latest } = screenQuestions(list, 'popular', 4, 'd');
+    expect(current?.id).toBe('d');
+    expect(top.map((x) => x.id)).toEqual(['a', 'b']);
+    expect(latest?.id).toBe('e');
+  });
+
+  it('sorotan yang tidak ada di daftar terbuka diabaikan', () => {
+    expect(screenQuestions(list, 'popular', 4, 'zzz').current).toBeNull();
   });
 });
 

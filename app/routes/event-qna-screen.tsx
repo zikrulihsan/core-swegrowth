@@ -45,12 +45,14 @@ const CARD_COUNT = 4;
 /**
  * Tampilan present untuk screen share/proyektor, khusus admin, seperti Present
  * mode di Slido: kartu pertanyaan (populer/terbaru) plus pertanyaan terbaru di
- * bawah. Admin bisa menyorot satu pertanyaan supaya tampil besar; sorotan
- * hanya tampilan di layar ini (tidak disimpan, peserta tidak melihatnya).
+ * bawah. Seperti Highlight di Slido, admin menyorot satu pertanyaan (toggle):
+ * pertanyaan itu naik ke paling atas dengan label "Sedang dibahas" dan warna
+ * sorotan. Sorotan hanya tampilan di layar ini (tidak disimpan, peserta tidak
+ * melihatnya).
  * Tidak real-time: daftar diperbarui lewat tombol Perbarui (R) atau setelah aksi.
  * Shortcut keyboard:
  *   → / N  tandai terjawab lalu sorot pertanyaan berikutnya
- *   1–4    sorot kartu nomor itu
+ *   1–4    sorot/lepas kartu nomor itu
  *   0 / Esc lepas sorotan
  *   R      perbarui daftar
  *   F      layar penuh
@@ -64,11 +66,10 @@ export default function EventQnaScreen({ loaderData: { activity: a } }: Route.Co
   const busy = useRef(false);
 
   const groups = groupQuestions(questions ?? []);
-  // Yang sudah dijawab/disembunyikan otomatis keluar dari sorotan.
-  const current = groups.open.find((q) => q.id === currentId) ?? null;
-  const { list, latest } = screenQuestions(groups.open, sort, CARD_COUNT);
+  // Yang disorot naik ke paling atas; yang sudah dijawab/disembunyikan otomatis lepas dari sorotan.
+  const { current, list, latest } = screenQuestions(groups.open, sort, CARD_COUNT, currentId);
   /** Urutan nomor shortcut 1–4 = urutan kartu di layar. */
-  const cards = latest ? [...list, latest] : list;
+  const cards = [...(current ? [current] : []), ...list, ...(latest ? [latest] : [])];
   const upNext = nextToPresent(questions ?? [], current?.id ?? null);
   const joinUrl = typeof window === 'undefined' ? qnaPath(a) : `${window.location.host}${qnaPath(a)}`;
 
@@ -106,7 +107,8 @@ export default function EventQnaScreen({ loaderData: { activity: a } }: Route.Co
     }
   };
 
-  const highlight = (q: Question) => setCurrentId(q.id);
+  /** Seperti Slido: sorot = toggle; menyorot pertanyaan lain memindahkan sorotan. */
+  const toggleHighlight = (q: Question) => setCurrentId((id) => (id === q.id ? null : q.id));
   const release = () => setCurrentId(null);
   /** Selesai membahas: sorotan pindah ke vote terbanyak berikutnya, yang tadi ditandai terjawab. */
   const next = () => {
@@ -132,9 +134,9 @@ export default function EventQnaScreen({ loaderData: { activity: a } }: Route.Co
         next();
       } else if (key === 'escape' || key === '0') {
         release();
-      } else if (/^[1-9]$/.test(key) && !current) {
+      } else if (/^[1-9]$/.test(key)) {
         const target = cards[Number(key) - 1];
-        if (target) highlight(target);
+        if (target) toggleHighlight(target);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -143,7 +145,11 @@ export default function EventQnaScreen({ loaderData: { activity: a } }: Route.Co
 
   const icons = (q: Question, n: number) => (
     <span className="qna-screen-icons">
-      <IconButton label={`Sorot (${n})`} onClick={() => highlight(q)}>
+      <IconButton
+        label={q.id === current?.id ? `Lepas sorotan (${n})` : `Sorot (${n})`}
+        pressed={q.id === current?.id}
+        onClick={() => toggleHighlight(q)}
+      >
         <StarIcon />
       </IconButton>
       <IconButton label="Tandai terjawab" onClick={() => void setStatus(q, 'answered')}>
@@ -172,12 +178,10 @@ export default function EventQnaScreen({ loaderData: { activity: a } }: Route.Co
               Kirim & vote di <b>{joinUrl}</b>
             </span>
           )}
-          {!current && (
-            <select aria-label="Urutkan" value={sort} onChange={(e) => setSort(e.target.value as QuestionSort)}>
-              <option value="popular">Populer</option>
-              <option value="recent">Terbaru</option>
-            </select>
-          )}
+          <select aria-label="Urutkan" value={sort} onChange={(e) => setSort(e.target.value as QuestionSort)}>
+            <option value="popular">Populer</option>
+            <option value="recent">Terbaru</option>
+          </select>
           <span className="qna-screen-count" title="Pertanyaan belum dijawab">
             <ChatIcon /> {groups.open.length}
           </span>
@@ -187,23 +191,6 @@ export default function EventQnaScreen({ loaderData: { activity: a } }: Route.Co
       <main className="qna-screen-main">
         {questions === null ? (
           <p className="qna-screen-empty">Memuat pertanyaan…</p>
-        ) : current ? (
-          <section className="qna-screen-focus" aria-live="polite" key={current.id}>
-            <span className="qna-screen-label">Sedang dibahas</span>
-            <Card q={current} big />
-            <div className="qna-screen-actions">
-              <button type="button" className="primary" onClick={next}>
-                {upNext ? 'Terjawab, lanjut berikutnya (→)' : 'Tandai terjawab (→)'}
-              </button>
-              <button type="button" onClick={release}>
-                Lepas sorotan (Esc)
-              </button>
-              <button type="button" onClick={() => void setStatus(current, 'hidden')}>
-                Sembunyikan
-              </button>
-            </div>
-            {upNext && <p className="qna-screen-upnext">Berikutnya: {upNext.body}</p>}
-          </section>
         ) : cards.length === 0 ? (
           <p className="qna-screen-empty">
             Belum ada pertanyaan.
@@ -215,17 +202,22 @@ export default function EventQnaScreen({ loaderData: { activity: a } }: Route.Co
             )}
           </p>
         ) : (
-          <section className="qna-screen-cards">
-            {list.map((q, i) => (
+          <section className="qna-screen-cards" aria-live="polite">
+            {current && (
+              <Card key={current.id} q={current} highlighted>
+                {icons(current, 1)}
+              </Card>
+            )}
+            {list.map((q) => (
               <Card key={q.id} q={q}>
-                {icons(q, i + 1)}
+                {icons(q, cards.indexOf(q) + 1)}
               </Card>
             ))}
             {latest && (
               <>
                 <p className="qna-screen-divider">Pertanyaan terbaru</p>
                 <Card key={latest.id} q={latest}>
-                  {icons(latest, list.length + 1)}
+                  {icons(latest, cards.length)}
                 </Card>
               </>
             )}
@@ -237,7 +229,7 @@ export default function EventQnaScreen({ loaderData: { activity: a } }: Route.Co
       <footer className="qna-screen-bar">
         <Link to={qnaPath(a)}>← Keluar</Link>
         <span>
-          → lanjut · 1–{CARD_COUNT} sorot · 0/Esc lepas · {groups.answered.length} terjawab
+          → terjawab & sorot berikutnya · 1–{CARD_COUNT} sorot/lepas · Esc lepas · {groups.answered.length} terjawab
         </span>
         <span className="qna-screen-bar-actions">
           <button type="button" disabled={refreshing} onClick={() => void reload()}>
@@ -252,14 +244,19 @@ export default function EventQnaScreen({ loaderData: { activity: a } }: Route.Co
   );
 }
 
-/** Kartu pertanyaan: penanya & vote di atas, pertanyaan di bawah. Ikon admin sebaris dengan vote, tidak menutupi teks. */
-function Card({ q, big, children }: { q: Question; big?: boolean; children?: ReactNode }) {
-  const long = q.body.length > (big ? 220 : 160);
+/**
+ * Kartu pertanyaan: penanya & vote di atas, pertanyaan di bawah. Ikon admin
+ * sebaris dengan vote, tidak menutupi teks. Yang disorot diberi label
+ * "Sedang dibahas" dan warna sorotan.
+ */
+function Card({ q, highlighted, children }: { q: Question; highlighted?: boolean; children?: ReactNode }) {
+  const long = q.body.length > 160;
   return (
-    <article className={`qna-card ${big ? 'big' : ''} ${long ? 'long' : ''}`}>
+    <article className={`qna-card ${highlighted ? 'is-current' : ''} ${long ? 'long' : ''}`}>
       <div className="qna-card-head">
         <ScreenAvatar q={q} />
         <span className="qna-card-name">{author(q)}</span>
+        {highlighted && <span className="qna-card-badge">Sedang dibahas</span>}
         <span className="qna-card-side">
           {children}
           <span className="qna-card-votes">
@@ -294,9 +291,16 @@ function ScreenAvatar({ q }: { q: Question }) {
 }
 
 /** Tombol ikon kecil; labelnya jadi tooltip & teks untuk pembaca layar. */
-function IconButton({ label, onClick, children }: { label: string; onClick: () => void; children: ReactNode }) {
+function IconButton({ label, pressed, onClick, children }: { label: string; pressed?: boolean; onClick: () => void; children: ReactNode }) {
   return (
-    <button type="button" className="qna-screen-icon" aria-label={label} title={label} onClick={onClick}>
+    <button
+      type="button"
+      className={`qna-screen-icon ${pressed ? 'on' : ''}`}
+      aria-label={label}
+      aria-pressed={pressed}
+      title={label}
+      onClick={onClick}
+    >
       {children}
     </button>
   );

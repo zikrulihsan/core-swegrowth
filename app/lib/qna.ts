@@ -54,17 +54,21 @@ export function nextToPresent(list: Question[], currentId: string | null) {
 }
 
 /**
- * Isi mode layar: pertanyaan teratas sesuai urutan, plus "pertanyaan
- * terbaru" di bawahnya kalau yang terbaru belum masuk daftar (seperti
- * Slido). Total kartu tetap `count` supaya muat satu layar.
+ * Isi tampilan present: pertanyaan yang disorot (kalau ada) di paling atas,
+ * lalu pertanyaan teratas sesuai urutan, plus "pertanyaan terbaru" di bawah
+ * kalau yang terbaru belum masuk daftar (seperti Slido). Total kartu tetap
+ * `count` supaya muat satu layar.
  */
-export function screenQuestions(open: Question[], sort: QuestionSort, count = 4) {
-  const sorted = sortQuestions(open, sort);
-  const newest = sortQuestions(open, 'recent')[0] ?? null;
-  if (sort === 'recent' || !newest || sorted.slice(0, count).some((q) => q.id === newest.id)) {
-    return { list: sorted.slice(0, count), latest: null };
+export function screenQuestions(open: Question[], sort: QuestionSort, count = 4, currentId: string | null = null) {
+  const current = open.find((q) => q.id === currentId) ?? null;
+  const rest = current ? open.filter((q) => q.id !== current.id) : open;
+  const slots = count - (current ? 1 : 0);
+  const sorted = sortQuestions(rest, sort);
+  const newest = sortQuestions(rest, 'recent')[0] ?? null;
+  if (sort === 'recent' || !newest || sorted.slice(0, slots).some((q) => q.id === newest.id)) {
+    return { current, list: sorted.slice(0, slots), latest: null };
   }
-  return { list: sorted.slice(0, count - 1), latest: newest };
+  return { current, list: sorted.slice(0, slots - 1), latest: newest };
 }
 
 /** Warna lembut avatar inisial, tetap sama untuk nama yang sama. */
