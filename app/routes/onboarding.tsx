@@ -72,7 +72,7 @@ export default function Onboarding({ loaderData }: Route.ComponentProps) {
               profile={profile}
               submitLabel="Simpan & dapatkan link komunitas"
               onSaved={async () => {
-                const [list] = await Promise.all([fetchWhatsappGroups(), refreshProfile()]);
+                const [list] = await Promise.all([fetchWhatsappGroups().catch(() => []), refreshProfile()]);
                 setGroups(list);
                 goTo('grup');
               }}
