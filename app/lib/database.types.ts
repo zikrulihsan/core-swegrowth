@@ -328,8 +328,23 @@ export type ActivityMemberInfoRow = {
   activity_id: string;
   meeting_url: string | null;
   recording_url: string | null;
+  /** Ringkasan sesi (mis. dari Zoom AI summary, boleh markdown); dibaca peserta lewat activity_recap(). */
+  summary: string | null;
   updated_at: string;
 };
+
+/** Feedback peserta untuk satu kegiatan (satu per akun). */
+export type ActivityFeedbackRow = {
+  activity_id: string;
+  user_id: string;
+  rating: number;
+  comment: string;
+  created_at: string;
+  updated_at: string;
+};
+
+/** Hasil activity_recap(): untuk peserta kegiatan & admin. */
+export type ActivityRecap = { summary: string | null; recording_url: string | null; has_recording: boolean };
 
 export type ActivityLinks = {
   /** Terisi untuk peserta terkonfirmasi mulai meeting_opens_at (admin: selalu). */
@@ -363,6 +378,7 @@ export type Database = {
       recommendation_topics: Table<RecommendationTopicRow, 'name', 'created_at'>;
       activity_questions: Table<ActivityQuestionRow, 'activity_id' | 'body', Timestamps>;
       activity_question_votes: Table<ActivityQuestionVoteRow, 'question_id' | 'user_id', 'created_at'>;
+      activity_feedback: Table<ActivityFeedbackRow, 'activity_id' | 'user_id' | 'rating', 'created_at' | 'updated_at'>;
       activity_member_info: Table<ActivityMemberInfoRow, 'activity_id', 'updated_at'>;
       community_groups: Table<CommunityGroupRow, 'slug' | 'name', 'id' | 'created_at'>;
     };
@@ -410,6 +426,8 @@ export type Database = {
       ask_activity_question: { Args: { p_activity_id: string; p_body: string; p_anonymous?: boolean }; Returns: string };
       toggle_question_vote: { Args: { p_question_id: string }; Returns: boolean };
       import_registration_questions: { Args: { p_activity_id: string; p_field_id?: string }; Returns: number };
+      activity_recap: { Args: { p_activity_id: string }; Returns: ActivityRecap[] };
+      submit_activity_feedback: { Args: { p_activity_id: string; p_rating: number; p_comment?: string }; Returns: undefined };
       activity_links: {
         Args: { p_activity_id: string };
         Returns: ActivityLinks[];

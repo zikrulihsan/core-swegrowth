@@ -2,13 +2,10 @@ import { useState } from 'react';
 import { Link, useRevalidator } from 'react-router';
 import type { Route } from './+types/portal';
 import { CommunityChannels } from '~/components/CommunityChannels';
-import { PastEventList } from '~/components/PastEventList';
 import { PortalShell, type PortalSection } from '~/components/PortalShell';
 import {
   activityPath,
   activityStatusLabel,
-  pastActivities,
-  registeredPath,
   upcomingSessions,
   type Activity,
   fetchMyRegistrationStatuses,
@@ -18,6 +15,7 @@ import { displayName, requireUser, useAuth } from '~/lib/auth';
 import { fetchWhatsappGroups } from '~/lib/community';
 import type { RecommendationRow, RegistrationStatus } from '~/lib/database.types';
 import { formatWibTime, relativeFromNow, wibDayParts } from '~/lib/format';
+import { MY_ACTIVITIES_PATH, myActivityPath } from '~/lib/my-activities';
 import {
   categoryOf,
   directoryPath,
@@ -42,19 +40,19 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
 
   const upcoming = upcomingSessions(activities, { undatedLast: true });
   const statusById = new Map(regs.map((r) => [r.activity_id, r.status]));
-  const attended = new Set(regs.filter((r) => r.status === 'confirmed').map((r) => r.activity_id));
+  const others = upcoming.filter((a) => !statusById.has(a.id));
 
   return {
     mine: upcoming.filter((a) => statusById.has(a.id)).map((a) => ({ activity: a, status: statusById.get(a.id)! })),
-    others: upcoming.filter((a) => !statusById.has(a.id)),
-    past: pastActivities(activities).slice(0, PAST_LIMIT),
-    attended: [...attended],
+    // Beranda hanya cuplikan; agenda lengkap & kegiatan lalu ada di /agenda.
+    others: others.slice(0, AGENDA_LIMIT),
+    moreAgenda: others.length > AGENDA_LIMIT,
     groups,
     recommendations,
   };
 }
 
-const PAST_LIMIT = 5;
+const AGENDA_LIMIT = 3;
 
 export function HydrateFallback() {
   return <div className="loading-block">Memuat portal…</div>;
@@ -67,15 +65,14 @@ const registrationLabel: Record<RegistrationStatus, string> = {
 };
 
 export default function Portal({ loaderData }: Route.ComponentProps) {
-  const { mine, others, past, attended, groups, recommendations } = loaderData;
+  const { mine, others, moreAgenda, groups, recommendations } = loaderData;
   const empty = mine.length === 0 && others.length === 0;
   const { user, profile } = useAuth();
   const firstName = displayName(profile, user).split(' ')[0];
 
   const sections: PortalSection[] = [
-    ...(mine.length > 0 ? [{ id: 'diikuti', label: 'Kegiatanmu' }] : []),
-    ...(others.length > 0 ? [{ id: 'agenda', label: 'Agenda' }] : []),
-    ...(past.length > 0 ? [{ id: 'kegiatan-lalu', label: 'Kegiatan lalu' }] : []),
+    ...(mine.length > 0 ? [{ id: 'diikuti', label: 'Kegiatanmu berikutnya' }] : []),
+    ...(others.length > 0 ? [{ id: 'agenda', label: 'Agenda mendatang' }] : []),
     { id: 'komunitas', label: 'Komunitas' },
     ...(groups === null || groups.length > 0 ? [{ id: 'grup', label: 'Grup per bidang' }] : []),
     { id: 'rekomendasiku', label: 'Rekomendasiku' },
@@ -89,10 +86,11 @@ export default function Portal({ loaderData }: Route.ComponentProps) {
         {mine.length > 0 && (
           <div className="panel" id="diikuti">
             <div className="panel-head">
-              <h2>Kegiatan yang kamu ikuti</h2>
+              <h2>Kegiatanmu berikutnya</h2>
+              <Link to={MY_ACTIVITIES_PATH}>Semua kegiatanku</Link>
             </div>
             <EventRows
-              items={mine.map((m) => ({ activity: m.activity, tag: registrationLabel[m.status], href: registeredPath(m.activity) }))}
+              items={mine.map((m) => ({ activity: m.activity, tag: registrationLabel[m.status], href: myActivityPath(m.activity) }))}
             />
           </div>
         )}
@@ -100,19 +98,17 @@ export default function Portal({ loaderData }: Route.ComponentProps) {
         {others.length > 0 && (
           <div className="panel" id="agenda">
             <div className="panel-head">
-              <h2>Agenda</h2>
+              <h2>Agenda mendatang</h2>
+              <Link to="/agenda">Lihat selengkapnya</Link>
             </div>
             <EventRows items={others.map((a) => ({ activity: a, tag: activityStatusLabel[a.status], href: activityPath(a) }))} />
-          </div>
-        )}
-
-        {past.length > 0 && (
-          <div className="panel" id="kegiatan-lalu">
-            <div className="panel-head">
-              <h2>Kegiatan lalu</h2>
-              <Link to="/agenda?waktu=lalu">Lihat semua</Link>
-            </div>
-            <PastEventList activities={past} tagOf={(a) => (attended.includes(a.id) ? 'kamu ikut' : null)} />
+            {moreAgenda && (
+              <p className="panel-more">
+                <Link className="text-link" to="/agenda">
+                  Lihat agenda lainnya di halaman Agenda →
+                </Link>
+              </p>
+            )}
           </div>
         )}
 

@@ -6,7 +6,8 @@ import { memberSince } from '~/lib/profile';
 import { MEMBERSHIP_LIVE } from '~/lib/site';
 import { Avatar } from './Avatar';
 
-export type PortalSection = { id: string; label: string };
+/** Sub-menu di bawah menu aktif: lompat ke bagian halaman (`id`) atau ke halaman lain (`to`). */
+export type PortalSection = { id: string; label: string } | { to: string; label: string };
 
 const stroke = {
   viewBox: '0 0 24 24',
@@ -22,6 +23,12 @@ const ICONS = {
   home: (
     <svg {...stroke}>
       <path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1z" />
+    </svg>
+  ),
+  activities: (
+    <svg {...stroke}>
+      <rect x="4" y="5" width="16" height="15" rx="2" />
+      <path d="M8 3v4M16 3v4M4 10h16M9 15l2 2 4-4" />
     </svg>
   ),
   profile: (
@@ -99,6 +106,7 @@ function PortalSidebar({ sections }: { sections?: PortalSection[] }) {
 
   const items = [
     { to: '/portal', label: 'Beranda', icon: ICONS.home, end: true },
+    { to: '/portal/kegiatan', label: 'Kegiatanku', icon: ICONS.activities, end: false },
     { to: '/portal/profil', label: 'Profil', icon: ICONS.profile, end: false },
     {
       to: '/portal/membership',
@@ -133,13 +141,19 @@ function PortalSidebar({ sections }: { sections?: PortalSection[] }) {
                 </NavLink>
                 {active && sections && sections.length > 0 && (
                   <ul className="side-sub" aria-label={`Bagian ${item.label}`}>
-                    {sections.map((s) => (
-                      <li key={s.id}>
-                        <a href={`#${s.id}`} aria-current={hash === `#${s.id}` ? 'location' : undefined}>
-                          {s.label}
-                        </a>
-                      </li>
-                    ))}
+                    {sections.map((s) =>
+                      'to' in s ? (
+                        <li key={s.to}>
+                          <Link to={s.to}>{s.label} ↗</Link>
+                        </li>
+                      ) : (
+                        <li key={s.id}>
+                          <a href={`#${s.id}`} aria-current={hash === `#${s.id}` ? 'location' : undefined}>
+                            {s.label}
+                          </a>
+                        </li>
+                      ),
+                    )}
                   </ul>
                 )}
               </li>
