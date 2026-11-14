@@ -11,6 +11,10 @@ export default [
   ),
   route('agenda/:slug/daftar', 'routes/event-register.tsx'),
   route('agenda/:slug/terdaftar', 'routes/event-registered.tsx'),
+  // Tanya jawab ala Slido (SPA): baca publik, login untuk bertanya & vote
+  route('agenda/:slug/tanya', 'routes/event-qna.tsx'),
+  // Tampilan proyektor/screen share; admin bisa memoderasi dari sini
+  route('agenda/:slug/tanya/layar', 'routes/event-qna-screen.tsx'),
   route('portal/agenda/:slug', 'routes/portal-event-redirect.tsx'),
   route('rekaman', 'routes/recordings.tsx'),
   route('rekomendasi', 'routes/recommendations.tsx'),

@@ -223,6 +223,15 @@ button.nav-account {
 }
 .link-btn:hover {
   text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.link-btn[disabled] {
+  opacity: 0.6;
+  cursor: progress;
+  text-decoration: none;
+}
+.link-btn.danger {
+  color: var(--red-ink);
 }
 
 /* ---------- Login ---------- */
@@ -283,8 +292,8 @@ button.nav-account {
   color: var(--ink);
 }
 .member-tabs a[aria-current='page'] {
-  color: var(--green-deep);
-  border-bottom-color: var(--green);
+  color: var(--ink);
+  border-bottom-color: var(--green-deep);
 }
 
 .panel {
@@ -689,6 +698,14 @@ button.nav-account {
   gap: 10px;
   align-items: center;
 }
+.share-status:empty {
+  display: none;
+}
+.share-status {
+  margin-top: 10px;
+  font-size: 0.86rem;
+  color: var(--ink-soft);
+}
 .share-link code {
   font: 0.86rem var(--font-mono);
   padding: 6px 10px;
@@ -974,7 +991,7 @@ button.nav-account {
   border-left: 4px solid var(--green);
 }
 .calendar-panel.error {
-  border-left-color: #e5484d;
+  border-left-color: var(--red);
 }
 .calendar-panel > div:first-child {
   display: grid;
@@ -1095,7 +1112,11 @@ button.nav-account {
   align-items: center;
   justify-content: space-between;
   gap: 16px 24px;
-  border-left: 4px solid var(--yellow);
+  background: color-mix(in srgb, var(--yellow) 22%, var(--paper));
+  border-color: var(--yellow);
+}
+.complete-card .muted {
+  color: var(--ink-soft);
 }
 .complete-card > div {
   flex: 1 1 320px;

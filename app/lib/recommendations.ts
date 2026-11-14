@@ -94,13 +94,14 @@ export async function getRecommendationTopics(): Promise<string[]> {
   return data.map((t) => t.name);
 }
 
-/** Usulan milik akun yang login (semua status). */
+/** Usulan milik akun yang login (semua status). Melempar kalau gagal dimuat. */
 export async function fetchMyRecommendations(userId: string) {
-  const { data } = await supabase()
+  const { data, error } = await supabase()
     .from('recommendations')
     .select('*')
     .eq('submitted_by', userId)
     .order('created_at', { ascending: false });
+  if (error) throw error;
   return data ?? [];
 }
 
@@ -122,5 +123,12 @@ export async function checkRecommendationUrl(url: string, excludeId: string | nu
 export const submitRecommendation = (args: Database['public']['Functions']['submit_recommendation']['Args']) =>
   supabase().rpc('submit_recommendation', args);
 
-/** Tarik usulan sendiri; RLS hanya mengizinkan selama masih pending. */
-export const withdrawRecommendation = (id: string) => supabase().from('recommendations').delete().eq('id', id);
+/**
+ * Tarik usulan sendiri; RLS hanya mengizinkan selama masih pending. Delete yang ditolak RLS
+ * tidak memberi error, jadi baris yang terhapus dihitung: 0 berarti usulan sudah tidak bisa ditarik.
+ */
+export async function withdrawRecommendation(id: string): Promise<'ok' | 'locked' | 'failed'> {
+  const { data, error } = await supabase().from('recommendations').delete().eq('id', id).select('id');
+  if (error) return 'failed';
+  return data && data.length > 0 ? 'ok' : 'locked';
+}

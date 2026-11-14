@@ -109,3 +109,36 @@ export const BriefcaseIcon = () => (
     <path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M3.5 12.5h17" />
   </svg>
 );
+
+export const ChevronsUpIcon = () => (
+  <svg {...stroke} strokeWidth={2}>
+    <path d="m7 12 5-5 5 5M7 18l5-5 5 5" />
+  </svg>
+);
+
+export const CheckCircleIcon = () => (
+  <svg {...stroke} strokeWidth={2}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="m8.5 12.2 2.4 2.4 4.6-4.8" />
+  </svg>
+);
+
+export const EyeOffIcon = () => (
+  <svg {...stroke} strokeWidth={2}>
+    <path d="M10.6 5.1A10 10 0 0 1 12 5c6 0 9.5 7 9.5 7a17 17 0 0 1-2.6 3.4M6.2 6.2A17 17 0 0 0 2.5 12s3.5 7 9.5 7a9.6 9.6 0 0 0 5.8-2" />
+    <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18" />
+  </svg>
+);
+
+export const ThumbUpIcon = () => (
+  <svg {...stroke} strokeWidth={2}>
+    <path d="M7 10v11H4V10zM7 10l4-7a2.5 2.5 0 0 1 2.6 3L13 10h5.5a2 2 0 0 1 2 2.4l-1.4 7A2 2 0 0 1 17.1 21H7" />
+  </svg>
+);
+
+export const UserIcon = () => (
+  <svg {...stroke} strokeWidth={2}>
+    <circle cx="12" cy="8" r="4" />
+    <path d="M4 21a8 8 0 0 1 16 0" />
+  </svg>
+);

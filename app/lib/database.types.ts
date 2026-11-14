@@ -32,6 +32,10 @@ export type NextStep = { title: string; url: string; description: string };
 /** Pola jadwal berulang; starts_at/ends_at event = sesi pertama. */
 export type Recurrence = 'weekly' | 'biweekly' | 'monthly';
 
+/** 'open' = bisa bertanya & vote, 'closed' = hanya baca, 'off' = tidak dipakai. */
+export type QnaStatus = 'off' | 'open' | 'closed';
+export type QuestionStatus = 'open' | 'answered' | 'hidden';
+
 /** Foto dokumentasi event (activities.photos). */
 export type EventPhoto = { url: string; caption: string };
 
@@ -82,6 +86,8 @@ export type ActivityRow = {
   google_event_id: string | null;
   google_event_url: string | null;
   calendar_synced_at: string | null;
+  /** Halaman tanya jawab /agenda/:slug/tanya. */
+  qna_status: QnaStatus;
   starts_at: string | null;
   status: ActivityStatus;
   summary: string;
@@ -103,6 +109,33 @@ export type ActivityRegistrationRow = {
   status: RegistrationStatus;
   created_at: string;
   updated_at: string;
+};
+
+export type ActivityQuestionRow = {
+  id: string;
+  activity_id: string;
+  user_id: string | null;
+  body: string;
+  is_anonymous: boolean;
+  status: QuestionStatus;
+  /** Terisi kalau diimpor dari jawaban form pendaftaran. */
+  source_registration_id: string | null;
+  answered_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ActivityQuestionVoteRow = { question_id: string; user_id: string; created_at: string };
+
+/** Hasil activity_questions_list(): penanya anonim tanpa nama/handle/foto. */
+export type PublicQuestion = Pick<ActivityQuestionRow, 'id' | 'body' | 'status' | 'is_anonymous' | 'created_at' | 'answered_at'> & {
+  author_name: string | null;
+  /** Terisi kalau penanya punya profil publik (/member/:handle). */
+  author_handle: string | null;
+  author_avatar_url: string | null;
+  votes: number;
+  voted: boolean;
+  is_mine: boolean;
 };
 
 export type ActivityInterestRow = {
@@ -328,6 +361,8 @@ export type Database = {
       member_contributions: Table<MemberContributionRow, 'title' | 'url', 'id' | 'created_at'>;
       recommendations: Table<RecommendationRow, 'category' | 'title' | 'url' | 'reason', Timestamps>;
       recommendation_topics: Table<RecommendationTopicRow, 'name', 'created_at'>;
+      activity_questions: Table<ActivityQuestionRow, 'activity_id' | 'body', Timestamps>;
+      activity_question_votes: Table<ActivityQuestionVoteRow, 'question_id' | 'user_id', 'created_at'>;
       activity_member_info: Table<ActivityMemberInfoRow, 'activity_id', 'updated_at'>;
       community_groups: Table<CommunityGroupRow, 'slug' | 'name', 'id' | 'created_at'>;
     };
@@ -371,6 +406,10 @@ export type Database = {
       };
       cancel_activity_registration: { Args: { p_activity_id: string }; Returns: undefined };
       follow_activity: { Args: { p_activity_id: string }; Returns: undefined };
+      activity_questions_list: { Args: { p_activity_id: string }; Returns: PublicQuestion[] };
+      ask_activity_question: { Args: { p_activity_id: string; p_body: string; p_anonymous?: boolean }; Returns: string };
+      toggle_question_vote: { Args: { p_question_id: string }; Returns: boolean };
+      import_registration_questions: { Args: { p_activity_id: string; p_field_id?: string }; Returns: number };
       activity_links: {
         Args: { p_activity_id: string };
         Returns: ActivityLinks[];

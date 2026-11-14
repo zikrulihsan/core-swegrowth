@@ -1,0 +1,175 @@
+import { describe, expect, it } from 'vitest';
+import {
+  applyStatus,
+  applyVote,
+  avatarHue,
+  groupQuestions,
+  screenQuestions,
+  nextToPresent,
+  sortQuestions,
+  timeAgo,
+  type Question,
+} from './qna';
+
+const q = (id: string, patch: Partial<Question> = {}): Question => ({
+  id,
+  body: `Pertanyaan ${id}`,
+  status: 'open',
+  is_anonymous: false,
+  author_name: null,
+  author_handle: null,
+  author_avatar_url: null,
+  votes: 0,
+  voted: false,
+  is_mine: false,
+  created_at: '2026-11-14T10:00:00Z',
+  answered_at: null,
+  ...patch,
+});
+
+describe('sortQuestions', () => {
+  const list = [
+    q('a', { votes: 2, created_at: '2026-11-14T10:00:00Z' }),
+    q('b', { votes: 5, created_at: '2026-11-14T10:05:00Z' }),
+    q('c', { votes: 2, created_at: '2026-11-14T09:00:00Z' }),
+    q('d', { votes: 0, created_at: '2026-11-14T11:00:00Z' }),
+  ];
+
+  it('populer: vote terbanyak, seri yang lebih dulu masuk', () => {
+    expect(sortQuestions(list, 'popular').map((x) => x.id)).toEqual(['b', 'c', 'a', 'd']);
+  });
+
+  it('terbaru: paling baru di atas', () => {
+    expect(sortQuestions(list, 'recent').map((x) => x.id)).toEqual(['d', 'b', 'a', 'c']);
+  });
+
+  it('tab terjawab: yang terakhir dijawab di atas', () => {
+    const answered = [
+      q('x', { status: 'answered', answered_at: '2026-11-14T10:10:00Z', votes: 9 }),
+      q('y', { status: 'answered', answered_at: '2026-11-14T10:20:00Z' }),
+    ];
+    expect(sortQuestions(answered, 'popular', 'answered').map((x) => x.id)).toEqual(['y', 'x']);
+  });
+
+  it('tidak mengubah array asli', () => {
+    const copy = [...list];
+    sortQuestions(list, 'recent');
+    expect(list).toEqual(copy);
+  });
+});
+
+describe('groupQuestions', () => {
+  it('memisahkan per status', () => {
+    const g = groupQuestions([q('a'), q('b', { status: 'answered' }), q('c', { status: 'hidden' }), q('d')]);
+    expect(g.open.map((x) => x.id)).toEqual(['a', 'd']);
+    expect(g.answered.map((x) => x.id)).toEqual(['b']);
+    expect(g.hidden.map((x) => x.id)).toEqual(['c']);
+  });
+});
+
+describe('timeAgo', () => {
+  const now = new Date('2026-11-14T12:00:00Z');
+  it('menit dan jam', () => {
+    expect(timeAgo('2026-11-14T11:59:40Z', now)).toBe('baru saja');
+    expect(timeAgo('2026-11-14T11:55:00Z', now)).toBe('5 menit lalu');
+    expect(timeAgo('2026-11-14T09:00:00Z', now)).toBe('3 jam lalu');
+  });
+  it('lebih dari sehari jadi tanggal', () => {
+    expect(timeAgo('2026-11-10T09:00:00Z', now)).not.toMatch(/lalu/);
+  });
+});
+
+describe('nextToPresent', () => {
+  it('vote terbanyak yang belum dijawab, selain yang sedang tampil', () => {
+    const next = nextToPresent(
+      [
+        q('a', { votes: 9 }),
+        q('b', { votes: 7, status: 'answered' }),
+        q('c', { votes: 3, status: 'hidden' }),
+        q('d', { votes: 2 }),
+        q('e', { votes: 2, created_at: '2026-11-14T09:00:00Z' }),
+      ],
+      'a',
+    );
+    expect(next?.id).toBe('e');
+  });
+
+  it('null kalau tidak ada lagi', () => {
+    expect(nextToPresent([q('a', { status: 'answered' })], null)).toBeNull();
+  });
+});
+
+describe('applyStatus', () => {
+  it('terjawab: dapat waktu jawab', () => {
+    const now = new Date('2026-11-14T12:00:00Z');
+    expect(applyStatus([q('a')], 'a', 'answered', now)[0]).toMatchObject({ status: 'answered', answered_at: now.toISOString() });
+  });
+
+  it('dibuka lagi: waktu jawab dihapus', () => {
+    const answered = [q('a', { status: 'answered', answered_at: '2026-11-14T11:00:00Z' })];
+    expect(applyStatus(answered, 'a', 'open')[0].answered_at).toBeNull();
+  });
+
+  it('tidak mengubah array asli', () => {
+    const list = [q('a')];
+    applyStatus(list, 'a', 'hidden');
+    expect(list[0].status).toBe('open');
+  });
+});
+
+describe('applyVote', () => {
+  it('vote dan batal vote', () => {
+    const once = applyVote([q('a', { votes: 2 })], 'a');
+    expect(once[0]).toMatchObject({ voted: true, votes: 3 });
+    expect(applyVote(once, 'a')[0]).toMatchObject({ voted: false, votes: 2 });
+  });
+});
+
+describe('screenQuestions', () => {
+  const list = [
+    q('a', { votes: 9, created_at: '2026-11-14T10:00:00Z' }),
+    q('b', { votes: 7, created_at: '2026-11-14T10:01:00Z' }),
+    q('c', { votes: 5, created_at: '2026-11-14T10:02:00Z' }),
+    q('d', { votes: 3, created_at: '2026-11-14T10:03:00Z' }),
+    q('e', { votes: 0, created_at: '2026-11-14T10:09:00Z' }),
+  ];
+
+  it('3 teratas + pertanyaan terbaru di bawah', () => {
+    const { list: top, latest } = screenQuestions(list, 'popular');
+    expect(top.map((x) => x.id)).toEqual(['a', 'b', 'c']);
+    expect(latest?.id).toBe('e');
+  });
+
+  it('terbaru sudah masuk daftar: tanpa bagian terbaru, 4 kartu', () => {
+    const { list: top, latest } = screenQuestions(list.slice(0, 4), 'popular');
+    expect(top.map((x) => x.id)).toEqual(['a', 'b', 'c', 'd']);
+    expect(latest).toBeNull();
+  });
+
+  it('urutan terbaru: tanpa bagian terbaru', () => {
+    expect(screenQuestions(list, 'recent').latest).toBeNull();
+  });
+
+  it('kosong', () => {
+    expect(screenQuestions([], 'popular')).toEqual({ current: null, list: [], latest: null });
+  });
+
+  it('yang disorot naik ke paling atas, total kartu tetap', () => {
+    const { current, list: top, latest } = screenQuestions(list, 'popular', 4, 'd');
+    expect(current?.id).toBe('d');
+    expect(top.map((x) => x.id)).toEqual(['a', 'b']);
+    expect(latest?.id).toBe('e');
+  });
+
+  it('sorotan yang tidak ada di daftar terbuka diabaikan', () => {
+    expect(screenQuestions(list, 'popular', 4, 'zzz').current).toBeNull();
+  });
+});
+
+describe('avatarHue', () => {
+  it('stabil dan dalam rentang', () => {
+    expect(avatarHue('Paman')).toBe(avatarHue('Paman'));
+    expect(avatarHue('Paman')).toBeGreaterThanOrEqual(0);
+    expect(avatarHue('Paman')).toBeLessThan(360);
+  });
+});

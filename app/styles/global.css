@@ -14,7 +14,8 @@
   --paper-2: #faf5ec;
   --ink: #0b3d40;
   --ink-soft: #3b5d5e;
-  --ink-faint: #5d7472;
+  /* >= 4.5:1 di atas paper, krem (--bg), dan --bg-2 */
+  --ink-faint: #536a68;
   --line: #e5dcca;
   --line-2: #cec3ad;
   /* lime logo: untuk tanda/aksen, bukan teks di atas terang */
@@ -30,6 +31,10 @@
   /* teks biasa di atas teal */
   --on-teal: #d7e2dd;
   --yellow: #f0d65c;
+  --yellow-2: #f5e07f;
+  /* merah status/error: --red untuk latar & garis, --red-ink untuk teks (>= 5.8:1 di atas krem) */
+  --red: #e5484d;
+  --red-ink: #b4232a;
 
   --font-body: 'Plus Jakarta Sans Variable', 'Plus Jakarta Sans', system-ui, sans-serif;
   --font-display: var(--font-body);
@@ -178,7 +183,7 @@ p {
   color: var(--teal);
 }
 .on-teal .btn-primary:hover {
-  background: #f5e07f;
+  background: var(--yellow-2);
 }
 .on-teal .btn-ghost {
   background: transparent;
@@ -481,7 +486,7 @@ section.block {
   color: var(--ink);
 }
 .form-message.error {
-  background: color-mix(in srgb, #e5484d 13%, var(--paper));
+  background: color-mix(in srgb, var(--red) 13%, var(--paper));
   color: var(--ink);
 }
 .auth-block {

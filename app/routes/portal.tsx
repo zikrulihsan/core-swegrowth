@@ -3,7 +3,7 @@ import { Link, useRevalidator } from 'react-router';
 import type { Route } from './+types/portal';
 import { CommunityChannels } from '~/components/CommunityChannels';
 import { PastEventList } from '~/components/PastEventList';
-import { PortalHeader } from '~/components/PortalHeader';
+import { PortalShell, type PortalSection } from '~/components/PortalShell';
 import {
   activityPath,
   activityStatusLabel,
@@ -14,7 +14,7 @@ import {
   fetchMyRegistrationStatuses,
   getPublishedActivities,
 } from '~/lib/activities';
-import { requireUser } from '~/lib/auth';
+import { displayName, requireUser, useAuth } from '~/lib/auth';
 import { fetchWhatsappGroups } from '~/lib/community';
 import type { RecommendationRow, RegistrationStatus } from '~/lib/database.types';
 import { formatWibTime, relativeFromNow, wibDayParts } from '~/lib/format';
@@ -32,11 +32,12 @@ export const meta: Route.MetaFunction = () => [{ title: 'Portal — SWE Growth' 
 
 export async function clientLoader({ request }: Route.ClientLoaderArgs) {
   const user = await requireUser(request);
+  // Panel tambahan boleh gagal sendiri-sendiri: null = gagal dimuat, beda dengan daftar kosong.
   const [regs, activities, groups, recommendations] = await Promise.all([
     fetchMyRegistrationStatuses(user.id),
     getPublishedActivities(),
-    fetchWhatsappGroups(),
-    fetchMyRecommendations(user.id),
+    fetchWhatsappGroups().catch(() => null),
+    fetchMyRecommendations(user.id).catch(() => null),
   ]);
 
   const upcoming = upcomingSessions(activities, { undatedLast: true });
@@ -68,53 +69,70 @@ const registrationLabel: Record<RegistrationStatus, string> = {
 export default function Portal({ loaderData }: Route.ComponentProps) {
   const { mine, others, past, attended, groups, recommendations } = loaderData;
   const empty = mine.length === 0 && others.length === 0;
+  const { user, profile } = useAuth();
+  const firstName = displayName(profile, user).split(' ')[0];
+
+  const sections: PortalSection[] = [
+    ...(mine.length > 0 ? [{ id: 'diikuti', label: 'Kegiatanmu' }] : []),
+    ...(others.length > 0 ? [{ id: 'agenda', label: 'Agenda' }] : []),
+    ...(past.length > 0 ? [{ id: 'kegiatan-lalu', label: 'Kegiatan lalu' }] : []),
+    { id: 'komunitas', label: 'Komunitas' },
+    ...(groups === null || groups.length > 0 ? [{ id: 'grup', label: 'Grup per bidang' }] : []),
+    { id: 'rekomendasiku', label: 'Rekomendasiku' },
+  ];
 
   return (
-    <>
-      <PortalHeader />
-      <section className="block tight-top">
-        <div className="wrap narrow-wrap portal-stack">
-          {empty && <p className="muted">Belum ada agenda. Saat admin menambahkannya, semuanya muncul di halaman ini.</p>}
+    <PortalShell title={`Halo, ${firstName}`} sections={sections}>
+      <div className="portal-stack">
+        {empty && <p className="muted">Belum ada agenda. Saat admin menambahkannya, semuanya muncul di halaman ini.</p>}
 
-          {mine.length > 0 && (
-            <div className="panel">
-              <div className="panel-head">
-                <h2>Kegiatan yang kamu ikuti</h2>
-              </div>
-              <EventRows
-                items={mine.map((m) => ({ activity: m.activity, tag: registrationLabel[m.status], href: registeredPath(m.activity) }))}
-              />
-            </div>
-          )}
-
-          {others.length > 0 && (
-            <div className="panel">
-              <div className="panel-head">
-                <h2>Agenda</h2>
-              </div>
-              <EventRows items={others.map((a) => ({ activity: a, tag: activityStatusLabel[a.status], href: activityPath(a) }))} />
-            </div>
-          )}
-
-          {past.length > 0 && (
-            <div className="panel">
-              <div className="panel-head">
-                <h2>Kegiatan lalu</h2>
-                <Link to="/agenda?waktu=lalu">Lihat semua</Link>
-              </div>
-              <PastEventList activities={past} tagOf={(a) => (attended.includes(a.id) ? 'kamu ikut' : null)} />
-            </div>
-          )}
-
-          <div className="panel">
+        {mine.length > 0 && (
+          <div className="panel" id="diikuti">
             <div className="panel-head">
-              <h2>Gabung komunitas</h2>
+              <h2>Kegiatan yang kamu ikuti</h2>
             </div>
-            <CommunityChannels />
+            <EventRows
+              items={mine.map((m) => ({ activity: m.activity, tag: registrationLabel[m.status], href: registeredPath(m.activity) }))}
+            />
           </div>
+        )}
 
-          {groups.length > 0 && (
-            <div className="panel">
+        {others.length > 0 && (
+          <div className="panel" id="agenda">
+            <div className="panel-head">
+              <h2>Agenda</h2>
+            </div>
+            <EventRows items={others.map((a) => ({ activity: a, tag: activityStatusLabel[a.status], href: activityPath(a) }))} />
+          </div>
+        )}
+
+        {past.length > 0 && (
+          <div className="panel" id="kegiatan-lalu">
+            <div className="panel-head">
+              <h2>Kegiatan lalu</h2>
+              <Link to="/agenda?waktu=lalu">Lihat semua</Link>
+            </div>
+            <PastEventList activities={past} tagOf={(a) => (attended.includes(a.id) ? 'kamu ikut' : null)} />
+          </div>
+        )}
+
+        <div className="panel" id="komunitas">
+          <div className="panel-head">
+            <h2>Gabung komunitas</h2>
+          </div>
+          <CommunityChannels />
+        </div>
+
+        {groups === null ? (
+          <div className="panel" id="grup">
+            <div className="panel-head">
+              <h2>Grup per bidang</h2>
+            </div>
+            <LoadError what="Daftar grup" />
+          </div>
+        ) : (
+          groups.length > 0 && (
+            <div className="panel" id="grup">
               <div className="panel-head">
                 <h2>Grup per bidang</h2>
               </div>
@@ -132,12 +150,12 @@ export default function Portal({ loaderData }: Route.ComponentProps) {
                 ))}
               </ul>
             </div>
-          )}
+          )
+        )}
 
-          <MyRecommendations items={recommendations} />
-        </div>
-      </section>
-    </>
+        <MyRecommendations items={recommendations} />
+      </div>
+    </PortalShell>
   );
 }
 
@@ -175,17 +193,46 @@ function EventRows({ items }: { items: { activity: Activity; tag: string; href: 
   );
 }
 
-/** Usulan rekomendasi milik member: status review, edit/tarik selama masih menunggu. */
-function MyRecommendations({ items }: { items: RecommendationRow[] }) {
+/** Pesan gagal muat per panel, dengan tombol muat ulang data portal. */
+function LoadError({ what }: { what: string }) {
   const revalidator = useRevalidator();
+  const loading = revalidator.state === 'loading';
+  return (
+    <p className="form-message error load-error" role="status">
+      {what} belum bisa dimuat. Cek koneksi, lalu{' '}
+      <button className="link-btn" type="button" disabled={loading} onClick={() => revalidator.revalidate()}>
+        {loading ? 'memuat ulang…' : 'muat ulang'}
+      </button>
+      .
+    </p>
+  );
+}
+
+const WITHDRAW_ERROR = {
+  locked: 'Usulan ini sudah direview, jadi tidak bisa ditarik lagi.',
+  failed: 'Gagal menarik usulan. Cek koneksi, lalu coba lagi.',
+} as const;
+
+/** Usulan rekomendasi milik member: status review, edit/tarik selama masih menunggu. */
+function MyRecommendations({ items }: { items: RecommendationRow[] | null }) {
+  const revalidator = useRevalidator();
+  const [confirming, setConfirming] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ id: string; text: string } | null>(null);
 
   const withdraw = async (r: RecommendationRow) => {
-    if (!confirm(`Tarik rekomendasi "${r.title}"? Usulannya dihapus dari antrean review.`)) return;
     setBusy(r.id);
-    await withdrawRecommendation(r.id);
-    setBusy(null);
-    await revalidator.revalidate();
+    setNotice(null);
+    try {
+      const result = await withdrawRecommendation(r.id);
+      if (result !== 'ok') setNotice({ id: r.id, text: WITHDRAW_ERROR[result] });
+      await revalidator.revalidate();
+    } catch {
+      setNotice({ id: r.id, text: WITHDRAW_ERROR.failed });
+    } finally {
+      setBusy(null);
+      setConfirming(null);
+    }
   };
 
   return (
@@ -194,7 +241,9 @@ function MyRecommendations({ items }: { items: RecommendationRow[] }) {
         <h2>Rekomendasiku</h2>
         <Link to={SUBMIT_PATH}>Kirim rekomendasi</Link>
       </div>
-      {items.length === 0 ? (
+      {items === null ? (
+        <LoadError what="Rekomendasimu" />
+      ) : items.length === 0 ? (
         <p className="form-sub">
           Tahu acara, komunitas, course, atau buku yang bikin kamu grow?{' '}
           <Link className="text-link" to={SUBMIT_PATH}>
@@ -213,21 +262,44 @@ function MyRecommendations({ items }: { items: RecommendationRow[] }) {
                   {r.status === 'rejected' && rejectReasonLabel(r.reject_reason) && ` · ${rejectReasonLabel(r.reject_reason)}`}
                   {r.status === 'rejected' && r.reject_note && ` · ${r.reject_note}`}
                 </span>
-                {r.status === 'pending' && (
-                  <span className="inline-actions rec-row-actions">
-                    <Link className="text-link" to={`${SUBMIT_PATH}?edit=${r.id}`}>
-                      Edit
-                    </Link>
-                    <button className="link-btn" type="button" disabled={busy === r.id} onClick={() => withdraw(r)}>
-                      Tarik
-                    </button>
-                  </span>
-                )}
+                {r.status === 'pending' &&
+                  (confirming === r.id ? (
+                    <span className="inline-actions rec-row-actions rec-confirm">
+                      <span>Tarik dari antrean review?</span>
+                      <button className="link-btn danger" type="button" disabled={busy === r.id} onClick={() => withdraw(r)}>
+                        {busy === r.id ? 'Menarik…' : 'Ya, tarik'}
+                      </button>
+                      <button className="link-btn" type="button" disabled={busy === r.id} onClick={() => setConfirming(null)} autoFocus>
+                        Batal
+                      </button>
+                    </span>
+                  ) : (
+                    <span className="inline-actions rec-row-actions">
+                      <Link className="text-link" to={`${SUBMIT_PATH}?edit=${r.id}`}>
+                        Edit
+                      </Link>
+                      <button
+                        className="link-btn"
+                        type="button"
+                        onClick={() => {
+                          setNotice(null);
+                          setConfirming(r.id);
+                        }}
+                      >
+                        Tarik
+                      </button>
+                    </span>
+                  ))}
                 {r.status === 'approved' && (
                   <span>
                     <Link className="text-link" to={directoryPath(r.category)}>
                       Lihat di direktori
                     </Link>
+                  </span>
+                )}
+                {notice?.id === r.id && (
+                  <span className="row-error" role="alert">
+                    {notice.text}
                   </span>
                 )}
               </div>
