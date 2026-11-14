@@ -2543,16 +2543,37 @@ a.contrib-maker:hover {
   gap: 6px 16px;
   margin-top: 4px;
 }
-.qna-screen-list .qna-screen-actions {
-  margin: 0;
-  opacity: 0;
-  transition: opacity 0.15s var(--ease);
+/* Ikon moderasi di daftar: selalu tampil tapi redup, menyala saat ditunjuk. */
+.qna-screen-icons {
+  display: flex;
+  gap: 4px;
 }
-.qna-screen-list .qna-screen-actions button {
-  padding: 4px 12px;
-  font-size: 0.82rem;
+.qna-screen-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--s-muted);
+  opacity: 0.5;
+  cursor: pointer;
+  transition:
+    opacity 0.15s var(--ease),
+    background 0.15s var(--ease),
+    color 0.15s var(--ease);
 }
-.qna-screen-list li:hover .qna-screen-actions,
-.qna-screen-list li:focus-within .qna-screen-actions {
+.qna-screen-icon svg {
+  width: 18px;
+  height: 18px;
+}
+.qna-screen-list li:hover .qna-screen-icon,
+.qna-screen-icon:focus-visible {
   opacity: 1;
+}
+.qna-screen-icon:hover {
+  background: color-mix(in srgb, var(--yellow) 18%, transparent);
+  color: var(--yellow);
 }

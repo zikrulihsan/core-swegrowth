@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { data, Link } from 'react-router';
 import type { Route } from './+types/event-qna-screen';
+import { Check, EyeOffIcon, StarIcon } from '~/components/Icons';
 import { getPublishedActivityBySlug } from '~/lib/activities';
 import {
   applyModeration,
@@ -214,16 +215,16 @@ export default function EventQnaScreen({ loaderData: { activity: a } }: Route.Co
                     <div className="qna-screen-row">
                       <span className="qna-screen-author">{author(q)}</span>
                       {isAdmin && (
-                        <div className="qna-screen-actions">
-                          <button type="button" className="primary" onClick={() => highlight(q)}>
-                            Sorot ({i + 1})
-                          </button>
-                          <button type="button" onClick={() => run([{ q, change: { status: 'answered' } }])}>
-                            Terjawab
-                          </button>
-                          <button type="button" onClick={() => run([{ q, change: { status: 'hidden' } }])}>
-                            Sembunyikan
-                          </button>
+                        <div className="qna-screen-icons">
+                          <IconButton label={`Sorot (${i + 1})`} onClick={() => highlight(q)}>
+                            <StarIcon />
+                          </IconButton>
+                          <IconButton label="Tandai terjawab" onClick={() => run([{ q, change: { status: 'answered' } }])}>
+                            <Check />
+                          </IconButton>
+                          <IconButton label="Sembunyikan" onClick={() => run([{ q, change: { status: 'hidden' } }])}>
+                            <EyeOffIcon />
+                          </IconButton>
                         </div>
                       )}
                     </div>
@@ -249,6 +250,15 @@ export default function EventQnaScreen({ loaderData: { activity: a } }: Route.Co
         </button>
       </footer>
     </div>
+  );
+}
+
+/** Tombol ikon kecil; labelnya jadi tooltip & teks untuk pembaca layar. */
+function IconButton({ label, onClick, children }: { label: string; onClick: () => void; children: ReactNode }) {
+  return (
+    <button type="button" className="qna-screen-icon" aria-label={label} title={label} onClick={onClick}>
+      {children}
+    </button>
   );
 }
 
