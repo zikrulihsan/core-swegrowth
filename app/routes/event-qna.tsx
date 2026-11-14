@@ -1,20 +1,19 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { data, Link } from 'react-router';
 import type { Route } from './+types/event-qna';
 import { Avatar } from '~/components/Avatar';
 import { GoogleSignIn } from '~/components/GoogleSignIn';
 import { activityPath, getPublishedActivityBySlug } from '~/lib/activities';
-import { useAuth } from '~/lib/auth';
 import type { QuestionStatus } from '~/lib/database.types';
 import {
   askQuestion,
   deleteQuestion,
-  fetchQuestions,
   groupQuestions,
   moderateQuestion,
   QUESTION_MAX,
   qnaErrorMessage,
   qnaPath,
+  qnaScreenPath,
   sortQuestions,
   timeAgo,
   toggleVote,
@@ -22,6 +21,7 @@ import {
   type QuestionSort,
   type QuestionTab,
 } from '~/lib/qna';
+import { useQuestions } from '~/lib/use-questions';
 
 export const meta: Route.MetaFunction = ({ loaderData }) => [
   { title: `Tanya jawab: ${loaderData?.activity.title ?? 'Kegiatan'} — SWE Growth` },
@@ -46,43 +46,12 @@ const POLL_MS = 10_000;
  * Admin memoderasi langsung dari halaman ini (sorot, tandai terjawab, sembunyikan).
  */
 export default function EventQna({ loaderData: { activity: a } }: Route.ComponentProps) {
-  const { loading, user, isAdmin } = useAuth();
-  const [questions, setQuestions] = useState<Question[] | null>(null);
-  const [loadError, setLoadError] = useState(false);
+  const { questions, setQuestions, loadError, now, refresh, loading, signedIn, isAdmin } = useQuestions(a.id, POLL_MS);
   const [tab, setTab] = useState<QuestionTab>('open');
   const [sort, setSort] = useState<QuestionSort>('popular');
   const [error, setError] = useState<string | null>(null);
-  const [now, setNow] = useState(() => new Date());
 
   const open = a.qna_status === 'open';
-  const signedIn = Boolean(user);
-
-  const refresh = useCallback(
-    () =>
-      fetchQuestions(a.id, signedIn).then(
-        (list) => {
-          setQuestions(list);
-          setLoadError(false);
-          setNow(new Date());
-        },
-        () => setLoadError(true),
-      ),
-    [a.id, signedIn],
-  );
-
-  useEffect(() => {
-    if (loading) return;
-    void refresh();
-    const timer = setInterval(() => {
-      if (document.visibilityState === 'visible') void refresh();
-    }, POLL_MS);
-    const onVisible = () => document.visibilityState === 'visible' && void refresh();
-    document.addEventListener('visibilitychange', onVisible);
-    return () => {
-      clearInterval(timer);
-      document.removeEventListener('visibilitychange', onVisible);
-    };
-  }, [loading, refresh]);
 
   const patch = (id: string, change: Partial<Question>) =>
     setQuestions((list) => list?.map((q) => (q.id === id ? { ...q, ...change } : q)) ?? null);
@@ -144,7 +113,8 @@ export default function EventQna({ loaderData: { activity: a } }: Route.Componen
             {isAdmin && (
               <p className="form-message mt-20">
                 Kamu admin: sorot pertanyaan yang sedang dibahas, tandai terjawab, atau sembunyikan yang tidak pantas. Status tanya jawab
-                diatur di <Link to={`/admin/event/${a.id}`}>editor event</Link>.
+                diatur di <Link to={`/admin/event/${a.id}`}>editor event</Link>. Untuk screen share/proyektor, buka{' '}
+                <Link to={qnaScreenPath(a)}>mode layar</Link>: moderasi bisa dilakukan dari sana juga.
               </p>
             )}
 

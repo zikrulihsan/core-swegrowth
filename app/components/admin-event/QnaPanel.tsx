@@ -1,7 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import type { ActivityRow } from '~/lib/database.types';
-import { fetchQuestions, groupQuestions, importRegistrationQuestions, qnaPath, QNA_STATUS_LABEL, type Question } from '~/lib/qna';
+import {
+  fetchQuestions,
+  groupQuestions,
+  importRegistrationQuestions,
+  qnaPath,
+  qnaScreenPath,
+  QNA_STATUS_LABEL,
+  type Question,
+} from '~/lib/qna';
 
 /**
  * Ringkasan tanya jawab di editor event: jumlah per status, link ke halaman
@@ -48,9 +56,14 @@ export function QnaPanel({ activity: a }: { activity: ActivityRow }) {
     <div className="panel mt-28">
       <div className="panel-head">
         <h2>Tanya jawab</h2>
-        <Link to={qnaPath(a)} target="_blank">
-          Buka & moderasi ↗
-        </Link>
+        <span className="inline-actions">
+          <Link to={qnaPath(a)} target="_blank">
+            Buka & moderasi ↗
+          </Link>
+          <Link to={qnaScreenPath(a)} target="_blank">
+            Mode layar ↗
+          </Link>
+        </span>
       </div>
       <p className="muted">
         Status: <b>{QNA_STATUS_LABEL[a.qna_status]}</b> (ubah di bagian Pendaftaran).{' '}

@@ -2315,3 +2315,227 @@ a.contrib-maker:hover {
   gap: 10px;
   margin-top: 14px;
 }
+
+/* ============ Mode layar tanya jawab (/agenda/:slug/tanya/layar) ============
+   Menutupi navbar & footer situs. Kontrol hanya tampil saat mouse bergerak. */
+.qna-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: clamp(16px, 3vh, 36px);
+  padding: clamp(20px, 4vh, 48px) clamp(20px, 5vw, 72px);
+  overflow: auto;
+  background: var(--teal);
+  color: var(--cream);
+}
+.qna-screen.idle {
+  cursor: none;
+}
+.qna-screen-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px 32px;
+  flex-wrap: wrap;
+}
+.qna-screen-kicker,
+.qna-screen-label {
+  display: block;
+  color: var(--yellow);
+  font-size: clamp(0.8rem, 1.2vw, 1.05rem);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.qna-screen-head h1 {
+  font-size: clamp(1.2rem, 2.4vw, 2rem);
+  line-height: 1.25;
+  max-width: 32ch;
+}
+.qna-screen-join {
+  display: grid;
+  padding: 10px 16px;
+  border-radius: var(--r);
+  background: var(--teal-panel);
+  color: var(--on-teal);
+  font-size: clamp(0.85rem, 1.2vw, 1.05rem);
+  text-align: right;
+}
+.qna-screen-join b {
+  color: var(--yellow);
+  font-size: clamp(1rem, 1.8vw, 1.5rem);
+  overflow-wrap: anywhere;
+}
+.qna-screen-main {
+  align-self: center;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.qna-screen-focus {
+  display: grid;
+  gap: clamp(12px, 2.5vh, 28px);
+}
+.qna-screen-text {
+  font-size: clamp(1.7rem, 4.4vw, 4.2rem);
+  font-weight: 750;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.qna-screen-meta {
+  color: var(--on-teal);
+  font-size: clamp(1rem, 1.8vw, 1.5rem);
+  font-weight: 650;
+}
+.qna-screen-empty {
+  font-size: clamp(1.3rem, 2.6vw, 2.2rem);
+  text-align: center;
+  color: var(--on-teal);
+}
+.qna-screen-empty b {
+  color: var(--yellow);
+}
+.qna-screen-list {
+  list-style: none;
+  display: grid;
+  gap: clamp(10px, 2vh, 20px);
+  margin-top: clamp(12px, 2vh, 20px);
+}
+.qna-screen-list li {
+  display: flex;
+  gap: clamp(14px, 2vw, 28px);
+  align-items: flex-start;
+  padding: clamp(12px, 2vh, 22px) clamp(14px, 2vw, 26px);
+  border-radius: var(--r);
+  background: var(--teal-panel);
+}
+.qna-screen-list p {
+  font-size: clamp(1.1rem, 2.2vw, 2rem);
+  font-weight: 650;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.qna-screen-votes {
+  flex: none;
+  min-width: 3.2em;
+  color: var(--yellow);
+  font-size: clamp(1rem, 1.8vw, 1.6rem);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.qna-screen-author {
+  color: var(--on-teal);
+  font-size: clamp(0.85rem, 1.2vw, 1.05rem);
+}
+.qna-screen-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.qna-screen-actions button,
+.qna-screen-bar button {
+  padding: 7px 14px;
+  border: 1px solid color-mix(in srgb, var(--cream) 45%, transparent);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--cream);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.qna-screen-actions button.primary {
+  background: var(--yellow);
+  border-color: var(--yellow);
+  color: var(--teal);
+}
+.qna-screen-actions button:hover,
+.qna-screen-bar button:hover {
+  border-color: var(--yellow);
+}
+.qna-screen-upnext {
+  color: var(--on-teal);
+  font-size: 0.95rem;
+}
+.qna-screen-error {
+  margin-top: 16px;
+  color: var(--yellow);
+  font-weight: 700;
+}
+.qna-screen-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  flex-wrap: wrap;
+  color: var(--on-teal);
+  font-size: 0.85rem;
+  transition: opacity 0.3s var(--ease);
+}
+.qna-screen-bar a {
+  font-weight: 700;
+}
+.qna-screen.idle .qna-screen-bar {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.qna-screen-more {
+  margin-top: 14px;
+  color: var(--on-teal);
+  font-size: clamp(0.9rem, 1.4vw, 1.2rem);
+}
+/* Pertanyaan yang disorot masuk pelan; angka vote berdenyut saat berubah. */
+@media (prefers-reduced-motion: no-preference) {
+  .qna-screen-focus {
+    animation: qna-in 0.45s var(--ease);
+  }
+  .qna-screen-list li {
+    animation: qna-in 0.35s var(--ease);
+  }
+  .qna-screen-votes b {
+    display: inline-block;
+    animation: qna-pulse 0.5s var(--ease);
+  }
+}
+@keyframes qna-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}
+@keyframes qna-pulse {
+  40% {
+    transform: scale(1.35);
+  }
+}
+
+/* Tombol admin tidak menggeser isi layar: tersembunyi saat mouse diam,
+   di daftar melayang di pojok kartu yang sedang ditunjuk. */
+.qna-screen.idle .qna-screen-actions,
+.qna-screen.idle .qna-screen-upnext {
+  visibility: hidden;
+}
+.qna-screen-list li {
+  position: relative;
+}
+.qna-screen-list .qna-screen-actions {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  margin: 0;
+  padding: 6px;
+  border-radius: 999px;
+  background: var(--teal);
+  opacity: 0;
+  transition: opacity 0.15s var(--ease);
+}
+.qna-screen-list li:hover .qna-screen-actions,
+.qna-screen-list li:focus-within .qna-screen-actions {
+  opacity: 1;
+}

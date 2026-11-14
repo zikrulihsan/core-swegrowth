@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { groupQuestions, sortQuestions, timeAgo, type Question } from './qna';
+import { groupQuestions, nextToPresent, sortQuestions, timeAgo, type Question } from './qna';
 
 const q = (id: string, patch: Partial<Question> = {}): Question => ({
   id,
@@ -72,5 +72,22 @@ describe('timeAgo', () => {
   });
   it('lebih dari sehari jadi tanggal', () => {
     expect(timeAgo('2026-11-10T09:00:00Z', now)).not.toMatch(/lalu/);
+  });
+});
+
+describe('nextToPresent', () => {
+  it('vote terbanyak yang belum dijawab, selain yang disorot', () => {
+    const next = nextToPresent([
+      q('a', { votes: 9, is_highlighted: true }),
+      q('b', { votes: 7, status: 'answered' }),
+      q('c', { votes: 3, status: 'hidden' }),
+      q('d', { votes: 2 }),
+      q('e', { votes: 2, created_at: '2026-11-14T09:00:00Z' }),
+    ]);
+    expect(next?.id).toBe('e');
+  });
+
+  it('null kalau tidak ada lagi', () => {
+    expect(nextToPresent([q('a', { status: 'answered' })])).toBeNull();
   });
 });

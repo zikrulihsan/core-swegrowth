@@ -13,6 +13,7 @@ export const QNA_STATUS_LABEL: Record<QnaStatus, string> = {
 };
 
 export const qnaPath = (a: { slug: string }) => `/agenda/${a.slug}/tanya`;
+export const qnaScreenPath = (a: { slug: string }) => `/agenda/${a.slug}/tanya/layar`;
 
 export const QUESTION_MAX = 500;
 
@@ -38,6 +39,19 @@ export function groupQuestions(list: Question[]) {
     answered: by('answered'),
     hidden: by('hidden'),
   };
+}
+
+/**
+ * Pertanyaan berikutnya untuk dibahas: vote terbanyak yang belum dijawab
+ * (seri: yang lebih dulu masuk), selain yang sedang disorot.
+ */
+export function nextToPresent(list: Question[]) {
+  return (
+    sortQuestions(
+      list.filter((q) => q.status === 'open' && !q.is_highlighted),
+      'popular',
+    )[0] ?? null
+  );
 }
 
 /** "baru saja", "5 menit lalu", "3 jam lalu", lalu tanggal. */
