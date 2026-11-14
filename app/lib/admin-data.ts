@@ -127,7 +127,7 @@ export async function loadEventEditor(id: string | null) {
   return { activity: activity.data, info: info.data, registrations: registrations.data ?? [], groups };
 }
 
-type MemberLinks = Pick<Insert<'activity_member_info'>, 'meeting_url' | 'recording_url'>;
+type MemberLinks = Pick<Insert<'activity_member_info'>, 'meeting_url' | 'recording_url' | 'summary'>;
 
 /**
  * Simpan event (baru kalau `id` null) beserta link khusus member. Mengembalikan
@@ -141,6 +141,17 @@ export async function saveActivity(id: string | null, fields: Insert<'activities
   if (saved.error) return { error: saved.error, id: null };
   const info = await db.from('activity_member_info').upsert({ activity_id: saved.data.id, ...links, updated_at: new Date().toISOString() });
   return { error: info.error, id: saved.data.id };
+}
+
+/** Feedback peserta untuk satu event (RLS: admin membaca semua). */
+export async function fetchActivityFeedback(activityId: string) {
+  const { data, error } = await supabase()
+    .from('activity_feedback')
+    .select('*')
+    .eq('activity_id', activityId)
+    .order('updated_at', { ascending: false });
+  if (error) throw new Error(error.message);
+  return data;
 }
 
 /** Bucket Storage publik untuk foto dokumentasi (lihat migration community_events). */

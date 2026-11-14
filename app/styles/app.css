@@ -1334,3 +1334,118 @@ button.nav-account {
   margin-top: 32px;
   overflow-x: auto;
 }
+
+/* ---------- Kegiatanku (/portal/kegiatan) ---------- */
+.my-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.panel-more {
+  margin-top: 14px;
+  font-size: 0.9rem;
+}
+/* Ringkasan sesi dari Zoom (markdown): judul & daftar tetap rapi di dalam panel. */
+.recap-summary {
+  max-width: none;
+}
+.recap-summary h1,
+.recap-summary h2,
+.recap-summary h3 {
+  font-size: 1.02rem;
+  margin: 18px 0 6px;
+}
+.recap-summary > :first-child {
+  margin-top: 0;
+}
+.recap-summary ul,
+.recap-summary ol {
+  padding-left: 1.3em;
+  margin: 6px 0 10px;
+}
+.recap-summary li + li {
+  margin-top: 4px;
+}
+.feedback-form {
+  display: grid;
+  gap: 14px;
+}
+.rating {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.rating button {
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--line-2);
+  font-size: 1.8rem;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    color 0.12s var(--ease),
+    transform 0.12s var(--ease);
+}
+.rating button:hover {
+  transform: scale(1.12);
+}
+.rating button.on {
+  color: #e2b919;
+}
+.rating button:focus-visible {
+  outline: 2px solid var(--green-deep);
+  outline-offset: 2px;
+}
+.rating-label {
+  margin-left: 8px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+}
+
+/* Feedback peserta di editor event */
+.feedback-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 32px;
+}
+.feedback-average {
+  display: grid;
+  font-size: 0.95rem;
+  color: var(--ink-soft);
+}
+.feedback-average b {
+  font-size: 2rem;
+  line-height: 1.1;
+  color: var(--ink);
+}
+.feedback-bars {
+  list-style: none;
+  display: grid;
+  gap: 4px;
+  flex: 1 1 240px;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+.feedback-bars li {
+  display: grid;
+  grid-template-columns: 2.4em 1fr 2em;
+  align-items: center;
+  gap: 8px;
+}
+.feedback-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--bg-2);
+  overflow: hidden;
+}
+.feedback-bar span {
+  display: block;
+  height: 100%;
+  background: #e2b919;
+}

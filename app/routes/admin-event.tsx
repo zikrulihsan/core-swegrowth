@@ -4,6 +4,7 @@ import type { Route } from './+types/admin-event';
 import { CalendarPanel } from '~/components/admin-event/CalendarPanel';
 import { CopyLink, EditorSection, PosterButton } from '~/components/admin-event/EditorParts';
 import { PhotosEditor } from '~/components/admin-event/PhotosEditor';
+import { FeedbackPanel } from '~/components/admin-event/FeedbackPanel';
 import { QnaPanel } from '~/components/admin-event/QnaPanel';
 import { Registrants } from '~/components/admin-event/Registrants';
 import { FieldsEditor, NextStepsEditor } from '~/components/admin-event/RegistrationEditors';
@@ -128,7 +129,11 @@ export default function AdminEvent({ loaderData }: Route.ComponentProps) {
       alert('Tanggal berakhir pengulangan harus setelah sesi pertama.');
       return;
     }
-    const links = { meeting_url: val(form, 'meeting_url') || null, recording_url: val(form, 'recording_url') || null };
+    const links = {
+      meeting_url: val(form, 'meeting_url') || null,
+      recording_url: val(form, 'recording_url') || null,
+      summary: val(form, 'summary_session') || null,
+    };
 
     const saved = { id: '' };
     const ok = await run(
@@ -450,6 +455,21 @@ export default function AdminEvent({ loaderData }: Route.ComponentProps) {
                 placeholder="https://youtu.be/…"
               />
             </Field>
+            <Field
+              id="summary_session"
+              label="Ringkasan sesi (dari Zoom)"
+              optional
+              hint="Tempel ringkasan dari Zoom AI Companion (meeting summary) atau tulis sendiri; boleh markdown. Hanya terlihat oleh peserta kegiatan di Portal → Kegiatanku."
+            >
+              <textarea
+                id="summary_session"
+                name="summary_session"
+                rows={8}
+                maxLength={20000}
+                defaultValue={info?.summary ?? ''}
+                placeholder={'## Poin utama\n- …\n\n## Langkah selanjutnya\n- …'}
+              />
+            </Field>
             <PhotosEditor initial={a?.photos ?? []} folder={a?.id ?? 'baru'} />
           </EditorSection>
 
@@ -466,6 +486,8 @@ export default function AdminEvent({ loaderData }: Route.ComponentProps) {
         </form>
 
         {a && <QnaPanel activity={a} />}
+
+        {a && <FeedbackPanel activityId={a.id} activityTitle={a.title} registrations={registrations} />}
 
         {a && <Registrants activityTitle={a.title} fields={a.registration_fields} rows={registrations} />}
       </div>
