@@ -110,9 +110,9 @@ export const BriefcaseIcon = () => (
   </svg>
 );
 
-export const StarIcon = () => (
-  <svg {...stroke} strokeWidth={2}>
-    <path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" />
+export const ChevronUpIcon = () => (
+  <svg {...stroke} strokeWidth={2.4}>
+    <path d="m6 15 6-6 6 6" />
   </svg>
 );
 

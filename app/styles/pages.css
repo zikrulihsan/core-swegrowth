@@ -2547,12 +2547,11 @@ a.contrib-maker:hover {
 .qna-screen-icon:focus-visible {
   opacity: 1;
 }
-.qna-screen-icon.on {
+.qna-screen-icon.on,
+.qna-screen-icon.on:hover {
   opacity: 1;
-  color: #8a6d00;
-}
-.qna-screen-icon.on svg {
-  fill: var(--yellow);
+  background: var(--yellow);
+  color: #2b2508;
 }
 .qna-screen-icon:hover {
   background: var(--s-hover);
