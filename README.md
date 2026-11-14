@@ -20,6 +20,7 @@ Prinsip isi: tidak ada data contoh atau angka karangan. Bagian yang datanya koso
 | `/agenda/:slug`           | publik          | Detail kegiatan (link yang dibagikan): biaya (Gratis/harga), jadwal, tombol Daftar                                                                                                                                                                                   |
 | `/agenda/:slug/daftar`    | login           | Form pendaftaran: data peserta dari profil + pertanyaan khusus event + setuju CoC                                                                                                                                                                                    |
 | `/agenda/:slug/terdaftar` | login (peserta) | Konfirmasi: kode pendaftaran, kalender, link meeting (terbuka 1 jam sebelum acara), batal                                                                                                                                                                            |
+| `/agenda/:slug/tanya`     | publik          | Tanya jawab ala Slido: kirim pertanyaan (login, bisa anonim), upvote, tab belum/sudah dijawab. Admin menyorot, menandai terjawab, menyembunyikan                                                                                                                     |
 | `/onboarding`             | login           | Kenalan (motivasi) → isi profil → link grup WhatsApp                                                                                                                                                                                                                 |
 | `/code-of-conduct`        | publik          | Aturan komunitas                                                                                                                                                                                                                                                     |
 | `/privasi`                | publik          | Kebijakan privasi (dipakai juga di OAuth consent Google). Perbarui saat ada data/layanan baru                                                                                                                                                                        |
@@ -72,6 +73,13 @@ npm run build      # output ke build/client
    Video terbaru dari channel YouTube (maks. 15, dari feed channel lewat edge function `/api/youtube-feed`, cache sejam)
    juga otomatis masuk galeri tanpa perlu diinput. Channel-nya diatur lewat env `VITE_YOUTUBE_CHANNEL_ID` di Netlify
    (ID diawali `UC…`); ganti env lalu redeploy.
+
+7. **Tanya jawab**: migration `20261022000000_event_qna.sql` menambah `activities.qna_status` (`open` / `closed` /
+   `off`, diatur di editor event bagian Pendaftaran) serta tabel `activity_questions` & `activity_question_votes`.
+   Daftar dibaca lewat `activity_questions_list()` (nama penanya anonim tidak pernah ikut keluar), menulis lewat RPC
+   `ask_activity_question` / `toggle_question_vote`, moderasi lewat RLS khusus admin. Halaman memperbarui daftar tiap 10
+   detik. Di editor event, panel **Tanya jawab** bisa mengimpor jawaban form pendaftaran (mis. "Pertanyaan untuk
+   pembicara") sebagai pertanyaan anonim; aman diulang.
 
 ### Event komunitas
 
