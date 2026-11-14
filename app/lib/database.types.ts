@@ -118,8 +118,6 @@ export type ActivityQuestionRow = {
   body: string;
   is_anonymous: boolean;
   status: QuestionStatus;
-  /** Sedang dibahas; maksimal satu per event. */
-  is_highlighted: boolean;
   /** Terisi kalau diimpor dari jawaban form pendaftaran. */
   source_registration_id: string | null;
   answered_at: string | null;
@@ -130,10 +128,7 @@ export type ActivityQuestionRow = {
 export type ActivityQuestionVoteRow = { question_id: string; user_id: string; created_at: string };
 
 /** Hasil activity_questions_list(): penanya anonim tanpa nama/handle/foto. */
-export type PublicQuestion = Pick<
-  ActivityQuestionRow,
-  'id' | 'body' | 'status' | 'is_highlighted' | 'is_anonymous' | 'created_at' | 'answered_at'
-> & {
+export type PublicQuestion = Pick<ActivityQuestionRow, 'id' | 'body' | 'status' | 'is_anonymous' | 'created_at' | 'answered_at'> & {
   author_name: string | null;
   /** Terisi kalau penanya punya profil publik (/member/:handle). */
   author_handle: string | null;

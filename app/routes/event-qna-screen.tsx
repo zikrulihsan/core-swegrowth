@@ -1,68 +1,75 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { data, Link } from 'react-router';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { data, Link, redirect } from 'react-router';
 import type { Route } from './+types/event-qna-screen';
 import { ChatIcon, Check, EyeOffIcon, StarIcon, ThumbUpIcon, UserIcon } from '~/components/Icons';
 import { getPublishedActivityBySlug } from '~/lib/activities';
+import { fetchIsAdmin, requireUser } from '~/lib/auth';
+import type { QuestionStatus } from '~/lib/database.types';
 import {
-  applyModeration,
+  applyStatus,
   avatarHue,
   groupQuestions,
-  moderateQuestion,
   nextToPresent,
   qnaErrorMessage,
   qnaPath,
   screenQuestions,
-  type Moderation,
+  setQuestionStatus,
   type Question,
   type QuestionSort,
 } from '~/lib/qna';
 import { useQuestions } from '~/lib/use-questions';
 
 export const meta: Route.MetaFunction = ({ loaderData }) => [
-  { title: `Layar tanya jawab: ${loaderData?.activity.title ?? 'Kegiatan'} — SWE Growth` },
+  { title: `Present tanya jawab: ${loaderData?.activity.title ?? 'Kegiatan'} — SWE Growth` },
   { name: 'robots', content: 'noindex' },
 ];
 
-export async function clientLoader({ params }: Route.ClientLoaderArgs) {
+/** Khusus admin; peserta diarahkan ke daftar pertanyaan biasa. */
+export async function clientLoader({ request, params }: Route.ClientLoaderArgs) {
+  await requireUser(request);
   const activity = await getPublishedActivityBySlug(params.slug);
   if (!activity) throw data(null, { status: 404 });
+  if (!(await fetchIsAdmin())) throw redirect(qnaPath(activity));
   return { activity };
 }
 
 export function HydrateFallback() {
-  return <div className="loading-block">Memuat layar tanya jawab…</div>;
+  return <div className="loading-block">Memuat tampilan present…</div>;
 }
 
-/** Lebih sering dari halaman biasa supaya layar ikut berganti begitu moderator menyorot dari perangkat lain. */
-const POLL_MS = 4_000;
 /** Kontrol & kursor disembunyikan setelah mouse diam selama ini, supaya layar bersih untuk audiens. */
 const IDLE_MS = 2_500;
 /** Kartu di layar (termasuk "pertanyaan terbaru"), muat satu layar 16:9. */
 const CARD_COUNT = 4;
 
 /**
- * Mode layar untuk proyektor/screen share, seperti Present mode di Slido:
- * kartu pertanyaan (populer/terbaru) plus pertanyaan terbaru di bawah; yang
- * disorot tampil besar. Admin memoderasi langsung dari sini lewat ikon di
- * kartu, tombol (muncul saat mouse bergerak), atau shortcut keyboard:
+ * Tampilan present untuk screen share/proyektor, khusus admin, seperti Present
+ * mode di Slido: kartu pertanyaan (populer/terbaru) plus pertanyaan terbaru di
+ * bawah. Admin bisa menyorot satu pertanyaan supaya tampil besar; sorotan
+ * hanya tampilan di layar ini (tidak disimpan, peserta tidak melihatnya).
+ * Tidak real-time: daftar diperbarui lewat tombol Perbarui (R) atau setelah aksi.
+ * Shortcut keyboard:
  *   → / N  tandai terjawab lalu sorot pertanyaan berikutnya
  *   1–4    sorot kartu nomor itu
  *   0 / Esc lepas sorotan
+ *   R      perbarui daftar
  *   F      layar penuh
  */
 export default function EventQnaScreen({ loaderData: { activity: a } }: Route.ComponentProps) {
-  const { questions, mutate, refresh, isAdmin } = useQuestions(a.id, POLL_MS);
+  const { questions, mutate, refresh, reload, refreshing } = useQuestions(a.id);
   const [active, setActive] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sort, setSort] = useState<QuestionSort>('popular');
+  const [currentId, setCurrentId] = useState<string | null>(null);
   const busy = useRef(false);
 
   const groups = groupQuestions(questions ?? []);
-  const current = groups.highlighted;
+  // Yang sudah dijawab/disembunyikan otomatis keluar dari sorotan.
+  const current = groups.open.find((q) => q.id === currentId) ?? null;
   const { list, latest } = screenQuestions(groups.open, sort, CARD_COUNT);
   /** Urutan nomor shortcut 1–4 = urutan kartu di layar. */
   const cards = latest ? [...list, latest] : list;
-  const upNext = nextToPresent(questions ?? []);
+  const upNext = nextToPresent(questions ?? [], current?.id ?? null);
   const joinUrl = typeof window === 'undefined' ? qnaPath(a) : `${window.location.host}${qnaPath(a)}`;
 
   // Mouse diam → kontrol & kursor hilang.
@@ -82,90 +89,71 @@ export default function EventQnaScreen({ loaderData: { activity: a } }: Route.Co
     };
   }, []);
 
-  /**
-   * Jalankan beberapa perubahan berurutan, satu aksi dalam satu waktu (tombol &
-   * shortcut bisa beruntun). Layar langsung berubah; database menyusul.
-   */
-  const run = useCallback(
-    async (steps: { q: Question; change: Moderation }[]) => {
-      if (busy.current || steps.length === 0) return;
-      busy.current = true;
-      setError(null);
-      mutate((list) => steps.reduce((acc, { q, change }) => applyModeration(acc, q.id, change), list));
-      try {
-        for (const { q, change } of steps) {
-          const { error: dbError } = await moderateQuestion(q.id, change);
-          if (dbError) {
-            setError(qnaErrorMessage(dbError.message));
-            break;
-          }
-        }
-      } catch {
-        setError(qnaErrorMessage(undefined));
-      } finally {
-        busy.current = false;
-        // Buang hasil polling yang terambil di tengah langkah-langkah tadi, lalu
-        // ambil ulang: data server selalu jadi patokan akhir (juga kalau ada yang gagal).
-        mutate((list) => list);
-        void refresh();
-      }
-    },
-    [mutate, refresh],
-  );
+  /** Ubah status satu pertanyaan: layar langsung berubah, lalu disimpan dan daftar dimuat ulang. */
+  const setStatus = async (q: Question, status: QuestionStatus) => {
+    if (busy.current) return;
+    busy.current = true;
+    setError(null);
+    mutate((all) => applyStatus(all, q.id, status));
+    try {
+      const { error: dbError } = await setQuestionStatus(q.id, status);
+      if (dbError) setError(qnaErrorMessage(dbError.message));
+    } catch {
+      setError(qnaErrorMessage(undefined));
+    } finally {
+      busy.current = false;
+      void refresh();
+    }
+  };
 
-  const highlight = (q: Question) => run([{ q, change: { is_highlighted: true } }]);
-  const release = () => current && run([{ q: current, change: { is_highlighted: false } }]);
-  /**
-   * Selesai membahas: vote terbanyak berikutnya disorot, lalu yang tadi
-   * ditandai terjawab. Urutan ini membuat layar mana pun yang memuat data di
-   * tengah-tengah tetap menampilkan sorotan, tidak sempat kosong.
-   */
-  const next = () =>
-    run([
-      ...(upNext ? [{ q: upNext, change: { is_highlighted: true } }] : []),
-      ...(current ? [{ q: current, change: { status: 'answered' as const } }] : []),
-    ]);
+  const highlight = (q: Question) => setCurrentId(q.id);
+  const release = () => setCurrentId(null);
+  /** Selesai membahas: sorotan pindah ke vote terbanyak berikutnya, yang tadi ditandai terjawab. */
+  const next = () => {
+    if (busy.current) return;
+    setCurrentId(upNext?.id ?? null);
+    if (current) void setStatus(current, 'answered');
+  };
 
   // Dipasang ulang tiap render supaya shortcut selalu memakai kartu & sorotan terbaru.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       // Tombol yang ditahan tidak diulang-ulang (bisa melompati beberapa pertanyaan).
       if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+      if (e.target instanceof HTMLSelectElement) return;
       const key = e.key.toLowerCase();
       if (key === 'f') {
         e.preventDefault();
         void toggleFullscreen();
-        return;
-      }
-      if (!isAdmin) return;
-      if (key === 'arrowright' || key === 'n') {
+      } else if (key === 'r') {
+        void reload();
+      } else if (key === 'arrowright' || key === 'n') {
         e.preventDefault();
-        void next();
+        next();
       } else if (key === 'escape' || key === '0') {
-        void release();
+        release();
       } else if (/^[1-9]$/.test(key) && !current) {
         const target = cards[Number(key) - 1];
-        if (target) void highlight(target);
+        if (target) highlight(target);
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   });
 
-  const icons = (q: Question, n: number) =>
-    isAdmin && (
-      <span className="qna-screen-icons">
-        <IconButton label={`Sorot (${n})`} onClick={() => highlight(q)}>
-          <StarIcon />
-        </IconButton>
-        <IconButton label="Tandai terjawab" onClick={() => run([{ q, change: { status: 'answered' } }])}>
-          <Check />
-        </IconButton>
-        <IconButton label="Sembunyikan" onClick={() => run([{ q, change: { status: 'hidden' } }])}>
-          <EyeOffIcon />
-        </IconButton>
-      </span>
-    );
+  const icons = (q: Question, n: number) => (
+    <span className="qna-screen-icons">
+      <IconButton label={`Sorot (${n})`} onClick={() => highlight(q)}>
+        <StarIcon />
+      </IconButton>
+      <IconButton label="Tandai terjawab" onClick={() => void setStatus(q, 'answered')}>
+        <Check />
+      </IconButton>
+      <IconButton label="Sembunyikan" onClick={() => void setStatus(q, 'hidden')}>
+        <EyeOffIcon />
+      </IconButton>
+    </span>
+  );
 
   return (
     <div className={`qna-screen ${active ? '' : 'idle'}`}>
@@ -197,28 +185,24 @@ export default function EventQnaScreen({ loaderData: { activity: a } }: Route.Co
       </header>
 
       <main className="qna-screen-main">
-        {a.qna_status === 'off' && !isAdmin ? (
-          <p className="qna-screen-empty">Tanya jawab tidak dibuka untuk kegiatan ini.</p>
-        ) : questions === null ? (
+        {questions === null ? (
           <p className="qna-screen-empty">Memuat pertanyaan…</p>
         ) : current ? (
           <section className="qna-screen-focus" aria-live="polite" key={current.id}>
             <span className="qna-screen-label">Sedang dibahas</span>
             <Card q={current} big />
-            {isAdmin && (
-              <div className="qna-screen-actions">
-                <button type="button" className="primary" onClick={next}>
-                  {upNext ? 'Terjawab, lanjut berikutnya (→)' : 'Tandai terjawab (→)'}
-                </button>
-                <button type="button" onClick={release}>
-                  Lepas sorotan (Esc)
-                </button>
-                <button type="button" onClick={() => run([{ q: current, change: { status: 'hidden' } }])}>
-                  Sembunyikan
-                </button>
-              </div>
-            )}
-            {isAdmin && upNext && <p className="qna-screen-upnext">Berikutnya: {upNext.body}</p>}
+            <div className="qna-screen-actions">
+              <button type="button" className="primary" onClick={next}>
+                {upNext ? 'Terjawab, lanjut berikutnya (→)' : 'Tandai terjawab (→)'}
+              </button>
+              <button type="button" onClick={release}>
+                Lepas sorotan (Esc)
+              </button>
+              <button type="button" onClick={() => void setStatus(current, 'hidden')}>
+                Sembunyikan
+              </button>
+            </div>
+            {upNext && <p className="qna-screen-upnext">Berikutnya: {upNext.body}</p>}
           </section>
         ) : cards.length === 0 ? (
           <p className="qna-screen-empty">
@@ -252,14 +236,17 @@ export default function EventQnaScreen({ loaderData: { activity: a } }: Route.Co
 
       <footer className="qna-screen-bar">
         <Link to={qnaPath(a)}>← Keluar</Link>
-        {isAdmin && (
-          <span>
-            → lanjut · 1–{CARD_COUNT} sorot · 0/Esc lepas · {groups.answered.length} terjawab
-          </span>
-        )}
-        <button type="button" onClick={() => void toggleFullscreen()}>
-          Layar penuh (F)
-        </button>
+        <span>
+          → lanjut · 1–{CARD_COUNT} sorot · 0/Esc lepas · {groups.answered.length} terjawab
+        </span>
+        <span className="qna-screen-bar-actions">
+          <button type="button" disabled={refreshing} onClick={() => void reload()}>
+            {refreshing ? 'Memuat…' : '↻ Perbarui (R)'}
+          </button>
+          <button type="button" onClick={() => void toggleFullscreen()}>
+            Layar penuh (F)
+          </button>
+        </span>
       </footer>
     </div>
   );

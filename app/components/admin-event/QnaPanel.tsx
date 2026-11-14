@@ -61,7 +61,7 @@ export function QnaPanel({ activity: a }: { activity: ActivityRow }) {
             Buka & moderasi ↗
           </Link>
           <Link to={qnaScreenPath(a)} target="_blank">
-            Mode layar ↗
+            Tampilan present ↗
           </Link>
         </span>
       </div>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  applyModeration,
+  applyStatus,
   applyVote,
   avatarHue,
   groupQuestions,
@@ -15,7 +15,6 @@ const q = (id: string, patch: Partial<Question> = {}): Question => ({
   id,
   body: `Pertanyaan ${id}`,
   status: 'open',
-  is_highlighted: false,
   is_anonymous: false,
   author_name: null,
   author_handle: null,
@@ -60,16 +59,11 @@ describe('sortQuestions', () => {
 });
 
 describe('groupQuestions', () => {
-  it('memisahkan per status dan mengambil sorotan yang masih terbuka', () => {
-    const g = groupQuestions([q('a', { is_highlighted: true }), q('b', { status: 'answered' }), q('c', { status: 'hidden' }), q('d')]);
-    expect(g.highlighted?.id).toBe('a');
+  it('memisahkan per status', () => {
+    const g = groupQuestions([q('a'), q('b', { status: 'answered' }), q('c', { status: 'hidden' }), q('d')]);
     expect(g.open.map((x) => x.id)).toEqual(['a', 'd']);
     expect(g.answered.map((x) => x.id)).toEqual(['b']);
     expect(g.hidden.map((x) => x.id)).toEqual(['c']);
-  });
-
-  it('tanpa sorotan', () => {
-    expect(groupQuestions([q('a')]).highlighted).toBeNull();
   });
 });
 
@@ -86,44 +80,40 @@ describe('timeAgo', () => {
 });
 
 describe('nextToPresent', () => {
-  it('vote terbanyak yang belum dijawab, selain yang disorot', () => {
-    const next = nextToPresent([
-      q('a', { votes: 9, is_highlighted: true }),
-      q('b', { votes: 7, status: 'answered' }),
-      q('c', { votes: 3, status: 'hidden' }),
-      q('d', { votes: 2 }),
-      q('e', { votes: 2, created_at: '2026-11-14T09:00:00Z' }),
-    ]);
+  it('vote terbanyak yang belum dijawab, selain yang sedang tampil', () => {
+    const next = nextToPresent(
+      [
+        q('a', { votes: 9 }),
+        q('b', { votes: 7, status: 'answered' }),
+        q('c', { votes: 3, status: 'hidden' }),
+        q('d', { votes: 2 }),
+        q('e', { votes: 2, created_at: '2026-11-14T09:00:00Z' }),
+      ],
+      'a',
+    );
     expect(next?.id).toBe('e');
   });
 
   it('null kalau tidak ada lagi', () => {
-    expect(nextToPresent([q('a', { status: 'answered' })])).toBeNull();
+    expect(nextToPresent([q('a', { status: 'answered' })], null)).toBeNull();
   });
 });
 
-describe('applyModeration', () => {
-  const list = [q('a', { is_highlighted: true }), q('b'), q('c')];
-
-  it('sorotan pindah: yang lain lepas', () => {
-    const out = applyModeration(list, 'b', { is_highlighted: true });
-    expect(out.filter((x) => x.is_highlighted).map((x) => x.id)).toEqual(['b']);
-  });
-
-  it('terjawab: lepas sorotan dan dapat waktu jawab', () => {
+describe('applyStatus', () => {
+  it('terjawab: dapat waktu jawab', () => {
     const now = new Date('2026-11-14T12:00:00Z');
-    const a = applyModeration(list, 'a', { status: 'answered' }, now)[0];
-    expect(a).toMatchObject({ status: 'answered', is_highlighted: false, answered_at: now.toISOString() });
+    expect(applyStatus([q('a')], 'a', 'answered', now)[0]).toMatchObject({ status: 'answered', answered_at: now.toISOString() });
   });
 
   it('dibuka lagi: waktu jawab dihapus', () => {
     const answered = [q('a', { status: 'answered', answered_at: '2026-11-14T11:00:00Z' })];
-    expect(applyModeration(answered, 'a', { status: 'open' })[0].answered_at).toBeNull();
+    expect(applyStatus(answered, 'a', 'open')[0].answered_at).toBeNull();
   });
 
   it('tidak mengubah array asli', () => {
-    applyModeration(list, 'b', { is_highlighted: true });
-    expect(list[0].is_highlighted).toBe(true);
+    const list = [q('a')];
+    applyStatus(list, 'a', 'hidden');
+    expect(list[0].status).toBe('open');
   });
 });
 

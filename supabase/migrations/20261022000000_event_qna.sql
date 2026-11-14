@@ -2,8 +2,9 @@
 --
 -- - activities.qna_status: 'open' (bisa bertanya & vote), 'closed' (daftar tetap
 --   tampil, tidak bisa bertanya/vote), 'off' (halaman tanya jawab tidak dipakai).
--- - activity_questions: satu pertanyaan, bisa anonim. Admin menandai terjawab,
---   menyorot satu pertanyaan yang sedang dibahas, atau menyembunyikannya.
+-- - activity_questions: satu pertanyaan, bisa anonim. Admin menandai terjawab
+--   atau menyembunyikannya. Pertanyaan yang sedang dibahas hanya dipilih di
+--   halaman present admin (tidak disimpan).
 -- - activity_question_votes: satu upvote per akun per pertanyaan.
 -- - Pertanyaan dari form pendaftaran bisa diimpor admin (selalu anonim, karena
 --   pendaftar menulisnya tanpa tahu akan tampil publik).
@@ -24,8 +25,6 @@ create table if not exists public.activity_questions (
   body text not null check (char_length(body) between 3 and 500),
   is_anonymous boolean not null default false,
   status text not null default 'open' check (status in ('open', 'answered', 'hidden')),
-  -- Sedang dibahas; maksimal satu per event (dijaga trigger).
-  is_highlighted boolean not null default false,
   -- Terisi kalau diimpor dari jawaban form pendaftaran.
   source_registration_id uuid unique references public.activity_registrations (id) on delete set null,
   answered_at timestamptz,
@@ -76,7 +75,7 @@ grant select, update, delete on public.activity_questions to authenticated;
 grant select on public.activity_question_votes to authenticated;
 
 -- ---------------------------------------------------------------------------
--- Trigger: updated_at, answered_at, satu sorotan per event
+-- Trigger: updated_at, answered_at
 -- ---------------------------------------------------------------------------
 
 create or replace function public.activity_questions_before_write()
@@ -91,10 +90,6 @@ begin
   elsif new.status <> 'answered' then
     new.answered_at := null;
   end if;
-  -- Yang sudah dijawab/disembunyikan tidak lagi disorot.
-  if new.status <> 'open' then
-    new.is_highlighted := false;
-  end if;
   return new;
 end;
 $$;
@@ -104,24 +99,6 @@ create trigger activity_questions_before_write
   before insert or update on public.activity_questions
   for each row execute function public.activity_questions_before_write();
 
-create or replace function public.activity_questions_single_highlight()
-returns trigger
-language plpgsql
-set search_path = ''
-as $$
-begin
-  update public.activity_questions
-  set is_highlighted = false
-  where activity_id = new.activity_id and id <> new.id and is_highlighted;
-  return null;
-end;
-$$;
-
-drop trigger if exists activity_questions_single_highlight on public.activity_questions;
-create trigger activity_questions_single_highlight
-  after insert or update of is_highlighted on public.activity_questions
-  for each row when (new.is_highlighted)
-  execute function public.activity_questions_single_highlight();
 
 -- ---------------------------------------------------------------------------
 -- Daftar pertanyaan (publik)
@@ -132,7 +109,6 @@ returns table (
   id uuid,
   body text,
   status text,
-  is_highlighted boolean,
   is_anonymous boolean,
   author_name text,
   author_handle text,
@@ -152,7 +128,6 @@ as $$
     q.id,
     q.body,
     q.status,
-    q.is_highlighted,
     q.is_anonymous,
     case when not q.is_anonymous then nullif(p.full_name, '') end,
     -- Link profil hanya untuk profil yang memang publik (lihat public_profile()).

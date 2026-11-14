@@ -30,11 +30,10 @@ export function sortQuestions(list: Question[], sort: QuestionSort, tab: Questio
   });
 }
 
-/** Kelompok per tab plus pertanyaan yang sedang disorot (kalau ada). */
+/** Kelompok per tab. */
 export function groupQuestions(list: Question[]) {
   const by = (s: QuestionStatus) => list.filter((q) => q.status === s);
   return {
-    highlighted: list.find((q) => q.is_highlighted && q.status === 'open') ?? null,
     open: by('open'),
     answered: by('answered'),
     hidden: by('hidden'),
@@ -42,13 +41,13 @@ export function groupQuestions(list: Question[]) {
 }
 
 /**
- * Pertanyaan berikutnya untuk dibahas: vote terbanyak yang belum dijawab
- * (seri: yang lebih dulu masuk), selain yang sedang disorot.
+ * Pertanyaan berikutnya untuk dibahas di halaman present: vote terbanyak
+ * yang belum dijawab (seri: yang lebih dulu masuk), selain yang sedang tampil.
  */
-export function nextToPresent(list: Question[]) {
+export function nextToPresent(list: Question[], currentId: string | null) {
   return (
     sortQuestions(
-      list.filter((q) => q.status === 'open' && !q.is_highlighted),
+      list.filter((q) => q.status === 'open' && q.id !== currentId),
       'popular',
     )[0] ?? null
   );
@@ -75,21 +74,11 @@ export function avatarHue(name: string) {
   return hash % 360;
 }
 
-export type Moderation = { status?: QuestionStatus; is_highlighted?: boolean };
-
-/**
- * Perubahan moderasi diterapkan ke daftar lokal, sama seperti trigger di
- * database: sorotan hanya satu per event, dan yang dijawab/disembunyikan
- * tidak lagi disorot.
- */
-export function applyModeration(list: Question[], id: string, change: Moderation, now = new Date()) {
-  return list.map((q) => {
-    if (q.id !== id) return change.is_highlighted ? { ...q, is_highlighted: false } : q;
-    const next = { ...q, ...change };
-    if (next.status !== 'open') next.is_highlighted = false;
-    if (change.status) next.answered_at = change.status === 'answered' ? (q.answered_at ?? now.toISOString()) : null;
-    return next;
-  });
+/** Status baru diterapkan ke daftar lokal (optimistis), sama seperti trigger answered_at di database. */
+export function applyStatus(list: Question[], id: string, status: QuestionStatus, now = new Date()) {
+  return list.map((q) =>
+    q.id === id ? { ...q, status, answered_at: status === 'answered' ? (q.answered_at ?? now.toISOString()) : null } : q,
+  );
 }
 
 /** Vote dibalik di daftar lokal (optimistis). */
@@ -134,8 +123,8 @@ export const toggleVote = (questionId: string) => supabase().rpc('toggle_questio
 export const deleteQuestion = (questionId: string) => supabase().from('activity_questions').delete().eq('id', questionId);
 
 /** Moderasi admin (RLS khusus admin). */
-export const moderateQuestion = (questionId: string, patch: Moderation) =>
-  supabase().from('activity_questions').update(patch).eq('id', questionId);
+export const setQuestionStatus = (questionId: string, status: QuestionStatus) =>
+  supabase().from('activity_questions').update({ status }).eq('id', questionId);
 
 export const setQnaStatus = (activityId: string, qna_status: QnaStatus) =>
   supabase().from('activities').update({ qna_status }).eq('id', activityId);

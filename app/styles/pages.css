@@ -2130,24 +2130,6 @@ a.contrib-maker:hover {
   color: #a3401f;
   font-weight: 700;
 }
-.qna-highlight {
-  margin-top: 24px;
-  padding: 14px;
-  border-radius: var(--r);
-  background: var(--teal);
-}
-.qna-highlight-label {
-  display: block;
-  margin: 0 0 10px 4px;
-  color: var(--yellow);
-  font-size: 0.78rem;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-.qna-highlight .qna-item {
-  border-color: var(--yellow);
-}
 .qna-toolbar {
   display: flex;
   align-items: center;
@@ -2188,6 +2170,30 @@ a.contrib-maker:hover {
   background: var(--bg-2);
   font-size: 0.76rem;
   text-align: center;
+}
+.qna-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.qna-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.qna-refresh:hover:not(:disabled) {
+  color: var(--ink);
+  border-color: var(--line-2);
 }
 .qna-sort {
   display: flex;
@@ -2603,6 +2609,10 @@ a.contrib-maker:hover {
   color: var(--s-muted);
   font-size: 0.85rem;
   transition: opacity 0.3s var(--ease);
+}
+.qna-screen-bar-actions {
+  display: flex;
+  gap: 8px;
 }
 .qna-screen-bar a {
   color: var(--s-text);

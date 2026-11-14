@@ -5,24 +5,24 @@ import { Avatar } from '~/components/Avatar';
 import { GoogleSignIn } from '~/components/GoogleSignIn';
 import { activityPath, getPublishedActivityBySlug } from '~/lib/activities';
 import {
-  applyModeration,
+  applyStatus,
   applyVote,
   askQuestion,
   deleteQuestion,
   groupQuestions,
-  moderateQuestion,
   QUESTION_MAX,
   qnaErrorMessage,
   qnaPath,
   qnaScreenPath,
+  setQuestionStatus,
   sortQuestions,
   timeAgo,
   toggleVote,
-  type Moderation,
   type Question,
   type QuestionSort,
   type QuestionTab,
 } from '~/lib/qna';
+import type { QuestionStatus } from '~/lib/database.types';
 import { useQuestions } from '~/lib/use-questions';
 
 export const meta: Route.MetaFunction = ({ loaderData }) => [
@@ -40,15 +40,14 @@ export function HydrateFallback() {
   return <div className="loading-block">Memuat tanya jawab…</div>;
 }
 
-/** Daftar diperbarui berkala selama tab terbuka, supaya vote & tanda terjawab ikut bergerak saat acara. */
-const POLL_MS = 10_000;
-
 /**
- * Tanya jawab ala Slido: siapa pun bisa membaca, login untuk bertanya & vote.
- * Admin memoderasi langsung dari halaman ini (sorot, tandai terjawab, sembunyikan).
+ * Tanya jawab ala Slido: siapa pun bisa membaca daftar pertanyaan, login untuk
+ * bertanya & vote. Admin menandai terjawab/menyembunyikan dari sini; tampilan
+ * present (sorot pertanyaan untuk screen share) khusus admin di /tanya/layar.
+ * Tidak real-time: daftar diperbarui lewat tombol Perbarui atau setelah aksi.
  */
 export default function EventQna({ loaderData: { activity: a } }: Route.ComponentProps) {
-  const { questions, mutate, loadError, now, refresh, loading, signedIn, isAdmin } = useQuestions(a.id, POLL_MS);
+  const { questions, mutate, loadError, refreshing, now, refresh, reload, loading, signedIn, isAdmin } = useQuestions(a.id);
   const [tab, setTab] = useState<QuestionTab>('open');
   const [sort, setSort] = useState<QuestionSort>('popular');
   const [error, setError] = useState<string | null>(null);
@@ -60,10 +59,8 @@ export default function EventQna({ loaderData: { activity: a } }: Route.Componen
     // Optimistis: langsung berubah, dibetulkan dari server kalau gagal.
     mutate((list) => applyVote(list, q.id));
     const { error: rpcError } = await toggleVote(q.id);
-    if (rpcError) {
-      setError(qnaErrorMessage(rpcError.message));
-      void refresh();
-    }
+    if (rpcError) setError(qnaErrorMessage(rpcError.message));
+    await refresh();
   };
 
   const remove = async (q: Question) => {
@@ -74,17 +71,16 @@ export default function EventQna({ loaderData: { activity: a } }: Route.Componen
     await refresh();
   };
 
-  const moderate = async (q: Question, change: Moderation) => {
+  const moderate = async (q: Question, status: QuestionStatus) => {
     setError(null);
-    mutate((list) => applyModeration(list, q.id, change));
-    const { error: dbError } = await moderateQuestion(q.id, change);
+    mutate((list) => applyStatus(list, q.id, status));
+    const { error: dbError } = await setQuestionStatus(q.id, status);
     if (dbError) setError(qnaErrorMessage(dbError.message));
     await refresh();
   };
 
   const groups = groupQuestions(questions ?? []);
-  // Yang sedang disorot sudah tampil di atas, tidak diulang di daftar.
-  const shown = sortQuestions(groups[tab], sort, tab).filter((q) => q.id !== groups.highlighted?.id);
+  const shown = sortQuestions(groups[tab], sort, tab);
   const tabs: { id: QuestionTab; label: string; count: number }[] = [
     { id: 'open', label: 'Pertanyaan', count: groups.open.length },
     { id: 'answered', label: 'Terjawab', count: groups.answered.length },
@@ -113,9 +109,9 @@ export default function EventQna({ loaderData: { activity: a } }: Route.Componen
           <>
             {isAdmin && (
               <p className="form-message mt-20">
-                Kamu admin: sorot pertanyaan yang sedang dibahas, tandai terjawab, atau sembunyikan yang tidak pantas. Status tanya jawab
-                diatur di <Link to={`/admin/event/${a.id}`}>editor event</Link>. Untuk screen share/proyektor, buka{' '}
-                <Link to={qnaScreenPath(a)}>mode layar</Link>: moderasi bisa dilakukan dari sana juga.
+                Kamu admin: tandai terjawab atau sembunyikan pertanyaan yang tidak pantas. Status tanya jawab diatur di{' '}
+                <Link to={`/admin/event/${a.id}`}>editor event</Link>. Untuk screen share, buka{' '}
+                <Link to={qnaScreenPath(a)}>tampilan present</Link> (khusus admin) untuk menyorot pertanyaan yang sedang dibahas.
               </p>
             )}
 
@@ -129,13 +125,6 @@ export default function EventQna({ loaderData: { activity: a } }: Route.Componen
 
             {error && <p className="form-message error mt-20">{error}</p>}
 
-            {groups.highlighted && (
-              <div className="qna-highlight">
-                <span className="qna-highlight-label">Sedang dibahas</span>
-                <QuestionItem q={groups.highlighted} {...actions} />
-              </div>
-            )}
-
             <div className="qna-toolbar">
               <div className="qna-tabs" role="tablist" aria-label="Kelompok pertanyaan">
                 {tabs.map((t) => (
@@ -144,19 +133,26 @@ export default function EventQna({ loaderData: { activity: a } }: Route.Componen
                   </button>
                 ))}
               </div>
-              {tab !== 'answered' && (
-                <div className="qna-sort" role="group" aria-label="Urutkan">
-                  {(['popular', 'recent'] as const).map((s) => (
-                    <button key={s} type="button" aria-pressed={sort === s} onClick={() => setSort(s)}>
-                      {s === 'popular' ? 'Populer' : 'Terbaru'}
-                    </button>
-                  ))}
-                </div>
-              )}
+              <div className="qna-tools">
+                {tab !== 'answered' && (
+                  <div className="qna-sort" role="group" aria-label="Urutkan">
+                    {(['popular', 'recent'] as const).map((s) => (
+                      <button key={s} type="button" aria-pressed={sort === s} onClick={() => setSort(s)}>
+                        {s === 'popular' ? 'Populer' : 'Terbaru'}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <button className="qna-refresh" type="button" disabled={refreshing} onClick={() => void reload()}>
+                  <span aria-hidden="true">↻</span> {refreshing ? 'Memuat…' : 'Perbarui'}
+                </button>
+              </div>
             </div>
 
             {questions === null ? (
-              <p className="muted">{loadError ? 'Pertanyaan belum bisa dimuat. Mencoba lagi…' : 'Memuat pertanyaan…'}</p>
+              <p className="muted">
+                {loadError ? 'Pertanyaan belum bisa dimuat. Tekan Perbarui untuk mencoba lagi.' : 'Memuat pertanyaan…'}
+              </p>
             ) : shown.length === 0 ? (
               <p className="panel empty-note muted">
                 {tab === 'open'
@@ -269,7 +265,7 @@ type ItemProps = {
   now: Date;
   vote: (q: Question) => void;
   remove: (q: Question) => void;
-  moderate: (q: Question, change: Moderation) => void;
+  moderate: (q: Question, status: QuestionStatus) => void;
 };
 
 function QuestionItem({ q, canVote, isAdmin, now, vote, remove, moderate }: ItemProps) {
@@ -320,23 +316,18 @@ function QuestionItem({ q, canVote, isAdmin, now, vote, remove, moderate }: Item
         </div>
         {isAdmin && (
           <div className="qna-admin">
-            {q.status === 'open' && (
-              <button className="link-btn" type="button" onClick={() => moderate(q, { is_highlighted: !q.is_highlighted })}>
-                {q.is_highlighted ? 'Lepas sorotan' : 'Sorot'}
-              </button>
-            )}
             {q.status === 'answered' ? (
-              <button className="link-btn" type="button" onClick={() => moderate(q, { status: 'open' })}>
+              <button className="link-btn" type="button" onClick={() => moderate(q, 'open')}>
                 Buka lagi
               </button>
             ) : (
               q.status === 'open' && (
-                <button className="link-btn" type="button" onClick={() => moderate(q, { status: 'answered' })}>
+                <button className="link-btn" type="button" onClick={() => moderate(q, 'answered')}>
                   Tandai terjawab
                 </button>
               )
             )}
-            <button className="link-btn" type="button" onClick={() => moderate(q, { status: q.status === 'hidden' ? 'open' : 'hidden' })}>
+            <button className="link-btn" type="button" onClick={() => moderate(q, q.status === 'hidden' ? 'open' : 'hidden')}>
               {q.status === 'hidden' ? 'Tampilkan' : 'Sembunyikan'}
             </button>
             <button className="link-btn danger" type="button" onClick={() => remove(q)}>
